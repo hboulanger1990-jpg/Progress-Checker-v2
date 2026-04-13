@@ -1,92 +1,205 @@
 import { useState, useEffect } from "react";
-import type { MangaEntry, VolumeStatus } from "./types";
-import {
-  loadAllManga,
-  saveAllManga,
-  createManga,
-  updateMangaVolume,
-} from "./storage";
-import HomeScreen from "./components/HomeScreen";
-import DetailScreen from "./components/DetailScreen";
+import type { AccentColor, Folder, Work, Section } from "./types";
+import { loadFolders, saveFolders } from "./storage";
+import FolderListScreen from "./screens/FolderListScreen";
+import WorkListScreen from "./screens/WorkListScreen";
+import WorkDetailScreen from "./screens/WorkDetailScreen";
 
-type View = { screen: "home" } | { screen: "detail"; id: string };
+type View =
+  | { screen: "folders" }
+  | { screen: "works"; folderId: string }
+  | { screen: "detail"; folderId: string; workId: string };
 
 export default function App() {
-  const [entries, setEntries] = useState<MangaEntry[]>(() => loadAllManga());
-  const [view, setView] = useState<View>({ screen: "home" });
-  const [transitioning, setTransitioning] = useState(false);
+  const [folders, setFolders] = useState<Folder[]>(() => loadFolders());
+  const [view, setView] = useState<View>({ screen: "folders" });
+  const [fading, setFading] = useState(false);
 
-  useEffect(() => {
-    saveAllManga(entries);
-  }, [entries]);
+  useEffect(() => { saveFolders(folders); }, [folders]);
 
-  function navigateTo(next: View) {
-    setTransitioning(true);
-    setTimeout(() => {
-      setView(next);
-      setTransitioning(false);
-    }, 120);
+  function navigate(next: View) {
+    setFading(true);
+    setTimeout(() => { setView(next); setFading(false); }, 110);
   }
 
-  function handleAddManga(title: string, totalVolumes: number) {
-    const newEntry = createManga(title, totalVolumes);
-    setEntries((prev) => [newEntry, ...prev]);
+  function mutate(updater: (prev: Folder[]) => Folder[]) {
+    setFolders((prev) => {
+      const next = updater(prev);
+      saveFolders(next);
+      return next;
+    });
   }
 
-  function handleImport(imported: MangaEntry[]) {
-    setEntries(imported.sort((a, b) => b.updatedAt - a.updatedAt));
+  // ---- Folder CRUD ----
+  function addFolder(title: string, color: AccentColor) {
+    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, works: [], updatedAt: Date.now() };
+    mutate((prev) => [f, ...prev]);
+  }
+  function editFolder(id: string, title: string, color: AccentColor) {
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, updatedAt: Date.now() } : f));
+  }
+  function deleteFolder(id: string) {
+    mutate((prev) => prev.filter((f) => f.id !== id));
   }
 
-  function getDetail(): MangaEntry | undefined {
-    if (view.screen !== "detail") return undefined;
-    return entries.find((e) => e.id === view.id);
+  // ---- Work CRUD ----
+  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string }) {
+    const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }
+    ));
+  }
+  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit">>) {
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : {
+        ...f, updatedAt: Date.now(),
+        works: f.works
+          .map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() })
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      }
+    ));
+  }
+  function deleteWork(folderId: string, workId: string) {
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }
+    ));
   }
 
-  function handleVolumeChange(vol: number, status: VolumeStatus) {
-    if (view.screen !== "detail") return;
-    const id = view.id;
-    setEntries((prev) =>
-      prev.map((e) => (e.id === id ? updateMangaVolume(e, vol, status) : e))
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-    );
+  // ---- Section CRUD ----
+  function addSection(folderId: string, workId: string, s: Omit<Section, "id" | "statuses">) {
+    const section: Section = { ...s, id: crypto.randomUUID(), statuses: {} };
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : {
+        ...f, updatedAt: Date.now(),
+        works: f.works
+          .map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() })
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      }
+    ));
+  }
+  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum">>) {
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : {
+        ...f, updatedAt: Date.now(),
+        works: f.works
+          .map((w) => w.id !== workId ? w : {
+            ...w, updatedAt: Date.now(),
+            sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }),
+          })
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      }
+    ));
+  }
+  function deleteSection(folderId: string, workId: string, sectionId: string) {
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : {
+        ...f, updatedAt: Date.now(),
+        works: f.works
+          .map((w) => w.id !== workId ? w : {
+            ...w, updatedAt: Date.now(),
+            sections: w.sections.filter((s) => s.id !== sectionId),
+          })
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      }
+    ));
   }
 
-  function handleEdit(title: string, totalVolumes: number) {
-    if (view.screen !== "detail") return;
-    const id = view.id;
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.id === id ? { ...e, title, totalVolumes, updatedAt: Date.now() } : e
-      ).sort((a, b) => b.updatedAt - a.updatedAt)
-    );
+  // ---- Item toggle ----
+  function toggleItem(folderId: string, workId: string, sectionId: string, num: number) {
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : {
+        ...f, updatedAt: Date.now(),
+        works: f.works
+          .map((w) => w.id !== workId ? w : {
+            ...w, updatedAt: Date.now(),
+            sections: w.sections.map((s) => {
+              if (s.id !== sectionId) return s;
+              const next = { ...s.statuses };
+              if (next[num]) delete next[num]; else next[num] = "read";
+              return { ...s, statuses: next };
+            }),
+          })
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      }
+    ));
   }
 
-  function handleDelete() {
-    if (view.screen !== "detail") return;
-    const id = view.id;
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-    navigateTo({ screen: "home" });
+  // ---- Bulk range ----
+  function bulkRange(folderId: string, workId: string, start: number, end: number, toRead: boolean) {
+    mutate((prev) => prev.map((f) =>
+      f.id !== folderId ? f : {
+        ...f, updatedAt: Date.now(),
+        works: f.works
+          .map((w) => w.id !== workId ? w : {
+            ...w, updatedAt: Date.now(),
+            sections: w.sections.map((s) => {
+              const next = { ...s.statuses };
+              for (let n = Math.max(start, s.startNum); n <= Math.min(end, s.endNum); n++) {
+                if (toRead) next[n] = "read"; else delete next[n];
+              }
+              return { ...s, statuses: next };
+            }),
+          })
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      }
+    ));
   }
 
-  const detail = getDetail();
+  // ---- Import ----
+  function importHandler(data: Folder[]) {
+    const sorted = [...data].sort((a, b) => b.updatedAt - a.updatedAt);
+    setFolders(sorted);
+    saveFolders(sorted);
+    navigate({ screen: "folders" });
+  }
+
+  // Derive
+  const currentFolder = view.screen !== "folders"
+    ? folders.find((f) => f.id === (view as { folderId: string }).folderId)
+    : undefined;
+  const currentWork = view.screen === "detail" && currentFolder
+    ? currentFolder.works.find((w) => w.id === (view as { workId: string }).workId)
+    : undefined;
 
   return (
-    <div className={`transition-opacity duration-150 ${transitioning ? "opacity-0" : "opacity-100"}`}>
-      {view.screen === "home" && (
-        <HomeScreen
-          entries={entries}
-          onSelect={(entry) => navigateTo({ screen: "detail", id: entry.id })}
-          onAdd={handleAddManga}
-          onImport={handleImport}
+    <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.11s ease" }}>
+      {view.screen === "folders" && (
+        <FolderListScreen
+          folders={folders}
+          onSelect={(f) => navigate({ screen: "works", folderId: f.id })}
+          onAdd={addFolder}
+          onEdit={editFolder}
+          onDelete={deleteFolder}
+          onImport={importHandler}
         />
       )}
-      {view.screen === "detail" && detail && (
-        <DetailScreen
-          entry={detail}
-          onBack={() => navigateTo({ screen: "home" })}
-          onVolumeChange={handleVolumeChange}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+
+      {view.screen === "works" && currentFolder && (
+        <WorkListScreen
+          folder={currentFolder}
+          onBack={() => navigate({ screen: "folders" })}
+          onSelect={(w) => navigate({ screen: "detail", folderId: currentFolder.id, workId: w.id })}
+          onAdd={(data) => addWork(currentFolder.id, data)}
+          onEdit={(wId, updates) => editWork(currentFolder.id, wId, updates)}
+          onDelete={(wId) => deleteWork(currentFolder.id, wId)}
+        />
+      )}
+
+      {view.screen === "detail" && currentFolder && currentWork && (
+        <WorkDetailScreen
+          folder={currentFolder}
+          work={currentWork}
+          onBack={() => navigate({ screen: "works", folderId: currentFolder.id })}
+          onEditWork={(updates) => editWork(currentFolder.id, currentWork.id, updates)}
+          onDeleteWork={() => {
+            deleteWork(currentFolder.id, currentWork.id);
+            navigate({ screen: "works", folderId: currentFolder.id });
+          }}
+          onAddSection={(s) => addSection(currentFolder.id, currentWork.id, s)}
+          onEditSection={(sId, u) => editSection(currentFolder.id, currentWork.id, sId, u)}
+          onDeleteSection={(sId) => deleteSection(currentFolder.id, currentWork.id, sId)}
+          onToggleItem={(sId, n) => toggleItem(currentFolder.id, currentWork.id, sId, n)}
+          onBulkRange={(s, e, r) => bulkRange(currentFolder.id, currentWork.id, s, e, r)}
         />
       )}
     </div>
