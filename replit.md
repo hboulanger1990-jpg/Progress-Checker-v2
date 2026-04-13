@@ -25,3 +25,12 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Artifacts
+
+### manga-tracker (React + Vite, previewPath: /)
+漫画の巻数管理アプリ。バックエンドなし・localStorageのみで永続化。
+- 1〜180巻のボタングリッド（5列）
+- タップで 未購入 → 所持（黄）→ 読了（青）→ 未購入 と循環
+- タイトル編集機能（クリックで変更、localStorageに保存）
+- ダークモード（濃い紺色）デザイン
