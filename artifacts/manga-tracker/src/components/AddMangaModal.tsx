@@ -25,8 +25,8 @@ export default function AddMangaModal({ mode, entry, onClose, onSave }: Props) {
       return;
     }
     const vol = parseInt(totalVolumes, 10);
-    if (isNaN(vol) || vol < 1 || vol > 500) {
-      setError("巻数は1〜500の間で入力してください");
+    if (isNaN(vol) || vol < 1 || vol > 9999) {
+      setError("最大数は1〜9999の間で入力してください");
       return;
     }
     onSave(trimmed, vol);
@@ -45,7 +45,7 @@ export default function AddMangaModal({ mode, entry, onClose, onSave }: Props) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up">
         <h2 className="text-lg font-bold text-[#c0caf5] mb-5">
-          {mode === "add" ? "漫画を追加" : "漫画を編集"}
+          {mode === "add" ? "項目を追加" : "項目を編集"}
         </h2>
 
         <div className="space-y-4">
@@ -61,14 +61,14 @@ export default function AddMangaModal({ mode, entry, onClose, onSave }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs text-[#787c99] mb-1">最大巻数</label>
+            <label className="block text-xs text-[#787c99] mb-1">最大数</label>
             <input
               type="number"
               value={totalVolumes}
               onChange={(e) => { setTotalVolumes(e.target.value); setError(""); }}
               onKeyDown={handleKeyDown}
               min={1}
-              max={500}
+              max={9999}
               className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors"
             />
           </div>

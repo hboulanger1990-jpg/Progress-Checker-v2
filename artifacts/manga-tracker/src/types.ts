@@ -1,4 +1,4 @@
-export type VolumeStatus = "unowned" | "owned" | "read";
+export type VolumeStatus = "unowned" | "read";
 
 export interface MangaEntry {
   id: string;

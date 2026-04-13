@@ -26,7 +26,7 @@ export default function HomeScreen({ entries, onSelect, onAdd, onImport }: Props
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 pt-2 pb-3">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold text-[#c0caf5]">📚 マイ漫画</h1>
+            <h1 className="text-xl font-bold text-[#c0caf5]">Progress Checker</h1>
             <button
               onClick={() => setShowBackup(true)}
               className="flex items-center gap-1.5 text-xs text-[#787c99] hover:text-[#c0caf5] transition-colors bg-[#24283b] px-3 py-1.5 rounded-lg border border-[#3b4261] active:scale-95"
@@ -64,7 +64,7 @@ export default function HomeScreen({ entries, onSelect, onAdd, onImport }: Props
             ) : (
               <div className="space-y-2">
                 <p className="text-4xl">📖</p>
-                <p className="text-[#787c99] text-sm">まだ漫画が登録されていません</p>
+                <p className="text-[#787c99] text-sm">まだ項目が登録されていません</p>
                 <p className="text-[#4a5177] text-xs">下の「＋」ボタンから追加しましょう</p>
               </div>
             )}
@@ -72,7 +72,7 @@ export default function HomeScreen({ entries, onSelect, onAdd, onImport }: Props
         ) : (
           <div className="space-y-2">
             {filtered.map((entry) => {
-              const { owned, read, total, percent } = calcProgress(entry);
+              const { read, percent } = calcProgress(entry);
               return (
                 <button
                   key={entry.id}
@@ -92,14 +92,10 @@ export default function HomeScreen({ entries, onSelect, onAdd, onImport }: Props
                   </div>
                   <div className="flex items-center gap-3 text-xs text-[#787c99]">
                     <span>
-                      <span className="inline-block w-2 h-2 rounded-sm bg-[#e0af68] mr-1"></span>
-                      所持 {owned}
-                    </span>
-                    <span>
                       <span className="inline-block w-2 h-2 rounded-sm bg-[#7aa2f7] mr-1"></span>
                       読了 {read}
                     </span>
-                    <span className="text-[#4a5177]">/ {entry.totalVolumes}巻</span>
+                    <span className="text-[#4a5177]">/ {entry.totalVolumes}</span>
                   </div>
                 </button>
               );
@@ -116,7 +112,7 @@ export default function HomeScreen({ entries, onSelect, onAdd, onImport }: Props
             className="w-full bg-[#7aa2f7] text-[#1a1b26] font-bold py-4 rounded-2xl text-base shadow-lg shadow-[#7aa2f7]/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
           >
             <span className="text-xl leading-none">＋</span>
-            <span>新しく漫画を追加</span>
+            <span>新しい項目を追加</span>
           </button>
         </div>
       </div>

@@ -44,16 +44,12 @@ export function updateMangaVolume(
 }
 
 export function calcProgress(entry: MangaEntry): {
-  owned: number;
   read: number;
-  total: number;
   percent: number;
 } {
-  const owned = Object.values(entry.statuses).filter((s) => s === "owned").length;
   const read = Object.values(entry.statuses).filter((s) => s === "read").length;
-  const total = owned + read;
   const percent = entry.totalVolumes > 0 ? Math.round((read / entry.totalVolumes) * 100) : 0;
-  return { owned, read, total, percent };
+  return { read, percent };
 }
 
 export function exportAllToJson(entries: MangaEntry[]): string {
