@@ -6,7 +6,7 @@ interface Props {
   mode: "add" | "edit";
   initial?: Folder;
   onClose: () => void;
-  onSave: (title: string, color: AccentColor) => void;
+  onSave: (title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string) => void;
 }
 
 const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
@@ -14,6 +14,8 @@ const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "blue");
+  const [defaultLabelUnread, setDefaultLabelUnread] = useState(initial?.defaultLabelUnread ?? "");
+  const [defaultLabelRead, setDefaultLabelRead] = useState(initial?.defaultLabelRead ?? "");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -22,13 +24,15 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   function handleSave() {
     const t = title.trim();
     if (!t) { setError("タイトルを入力してください"); return; }
-    onSave(t, color);
+    onSave(t, color, defaultLabelUnread.trim(), defaultLabelRead.trim());
   }
+
+  const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up">
+      <div className="relative w-full max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-[#c0caf5] mb-5">
           {mode === "add" ? "フォルダを追加" : "フォルダを編集"}
         </h2>
@@ -40,8 +44,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
               value={title}
               onChange={(e) => { setTitle(e.target.value); setError(""); }}
               onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") onClose(); }}
-              placeholder="例: 漫画、アニメ..."
-              className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
+              className={inputClass}
             />
           </div>
           <div>
@@ -61,6 +64,27 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
                   aria-label={ACCENT_COLORS[c].label}
                 />
               ))}
+            </div>
+          </div>
+          <div className="border-t border-[#3b4261] pt-4">
+            <p className="text-xs text-[#787c99] mb-3">このフォルダ内の作品で使うデフォルトのラベル（省略可）</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
+                <input
+                  value={defaultLabelUnread}
+                  onChange={(e) => setDefaultLabelUnread(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
+                <input
+                  value={defaultLabelRead}
+                  onChange={(e) => setDefaultLabelRead(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}

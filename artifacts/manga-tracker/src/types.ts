@@ -32,6 +32,8 @@ export interface Folder {
   id: string;
   title: string;
   accentColor: AccentColor;
+  defaultLabelUnread?: string;
+  defaultLabelRead?: string;
   works: Work[];
   updatedAt: number;
 }
