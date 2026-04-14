@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Folder, Work, Section } from "../types";
 import { ACCENT_COLORS } from "../types";
 import { calcWorkProgress, calcSectionProgress } from "../storage";
@@ -33,10 +33,20 @@ export default function WorkDetailScreen({
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [rangeError, setRangeError] = useState("");
+  const touchStart = useRef({ x: 0, y: 0 });
 
   const accentHex = ACCENT_COLORS[work.accentColor].hex;
   const folderHex = ACCENT_COLORS[folder.accentColor].hex;
   const { read, total, percent } = calcWorkProgress(work.sections);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  function handleTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStart.current.x;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
+    if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
+  }
 
   function handleDelete() {
     setShowMenu(false);
@@ -49,11 +59,21 @@ export default function WorkDetailScreen({
     onDeleteSection(s.id);
   }
 
+  function handleToggle(sectionId: string, num: number) {
+    onToggleItem(sectionId, num);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`item-${sectionId}-${num}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
   function handleBulkRange(toRead: boolean) {
     const s = parseInt(rangeStart, 10);
     const e = parseInt(rangeEnd, 10);
     if (isNaN(s) || isNaN(e) || s < 1 || e < 1) { setRangeError("正しい数値を入力してください"); return; }
     if (s > e) { setRangeError("開始番号は終了番号以下にしてください"); return; }
+    const label = toRead ? work.labelRead : work.labelUnread;
+    if (!window.confirm(`${s}〜${e} を「${label}」に変更します。よろしいですか？`)) return;
     setRangeError("");
     onBulkRange(s, e, toRead);
     setRangeStart("");
@@ -64,7 +84,7 @@ export default function WorkDetailScreen({
     const last = work.sections[work.sections.length - 1];
     const startNum = last ? last.endNum + 1 : 1;
     return {
-      label: `セクション ${work.sections.length + 1}`,
+      label: `${work.sections.length + 1}`,
       startNum,
       endNum: startNum + 11,
     };
@@ -73,7 +93,11 @@ export default function WorkDetailScreen({
   const inputClass = "w-0 flex-1 bg-[#1a1b26] text-[#c0caf5] border border-[#3b4261] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors text-center placeholder-[#4a5177]";
 
   return (
-    <div className="min-h-screen bg-[#1a1b26] flex flex-col">
+    <div
+      className="min-h-screen bg-[#1a1b26] flex flex-col"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Header */}
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 py-3">
         <div className="max-w-lg mx-auto relative">
@@ -108,7 +132,7 @@ export default function WorkDetailScreen({
                   onClick={handleDelete}
                   className="w-full px-4 py-3 text-left text-sm text-[#f7768e] hover:bg-[#24283b] transition-colors"
                 >
-                  🗑 作品を削除
+                  🗑 削除する
                 </button>
               </div>
             </>
@@ -201,7 +225,8 @@ export default function WorkDetailScreen({
                       return (
                         <button
                           key={num}
-                          onClick={() => onToggleItem(section.id, num)}
+                          id={`item-${section.id}-${num}`}
+                          onClick={() => handleToggle(section.id, num)}
                           className="border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation active:scale-90 transition-all duration-100"
                           style={
                             isRead
@@ -219,7 +244,7 @@ export default function WorkDetailScreen({
               );
             })}
 
-            {/* Add section button inline */}
+            {/* Add section button */}
             <button
               onClick={() => setSectionModal({ mode: "add" })}
               className="w-full py-3 rounded-xl border border-dashed border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"

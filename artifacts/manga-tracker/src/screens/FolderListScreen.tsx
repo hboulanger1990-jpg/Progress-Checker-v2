@@ -8,8 +8,8 @@ import BackupModal from "../modals/BackupModal";
 interface Props {
   folders: Folder[];
   onSelect: (f: Folder) => void;
-  onAdd: (title: string, color: AccentColor) => void;
-  onEdit: (id: string, title: string, color: AccentColor) => void;
+  onAdd: (title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string) => void;
+  onEdit: (id: string, title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string) => void;
   onDelete: (id: string) => void;
   onImport: (data: Folder[]) => void;
 }
@@ -23,7 +23,7 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
   const filtered = folders.filter((f) => f.title.toLowerCase().includes(search.toLowerCase()));
 
   function handleDelete(f: Folder) {
-    if (!window.confirm(`「${f.title}」を削除しますか？\n内の全作品も削除されます。`)) return;
+    if (!window.confirm(`「${f.title}」を削除しますか？\n内の全項目も削除されます。`)) return;
     onDelete(f.id);
   }
 
@@ -95,7 +95,7 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
                       <span className="text-xs font-bold shrink-0 ml-2" style={{ color: hex }}>{percent}%</span>
                     </div>
                     <div className="text-xs text-[#787c99] mb-2">
-                      {folder.works.length}作品 · 読了 {read}/{total}
+                      {folder.works.length}項目 · {read}/{total}
                     </div>
                     <div className="h-1.5 bg-[#1a1b26] rounded-full overflow-hidden">
                       <div
@@ -137,7 +137,7 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
         <FolderModal
           mode="add"
           onClose={() => setShowAdd(false)}
-          onSave={(title, color) => { onAdd(title, color); setShowAdd(false); }}
+          onSave={(title, color, dlu, dlr) => { onAdd(title, color, dlu, dlr); setShowAdd(false); }}
         />
       )}
       {editTarget && (
@@ -145,7 +145,7 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
           mode="edit"
           initial={editTarget}
           onClose={() => setEditTarget(null)}
-          onSave={(title, color) => { onEdit(editTarget.id, title, color); setEditTarget(null); }}
+          onSave={(title, color, dlu, dlr) => { onEdit(editTarget.id, title, color, dlu, dlr); setEditTarget(null); }}
         />
       )}
       {showBackup && (

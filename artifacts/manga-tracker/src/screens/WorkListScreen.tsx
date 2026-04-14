@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Folder, Work } from "../types";
 import { ACCENT_COLORS } from "../types";
 import { calcWorkProgress } from "../storage";
@@ -17,8 +17,13 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Work | null>(null);
+  const touchStart = useRef({ x: 0, y: 0 });
 
   const folderHex = ACCENT_COLORS[folder.accentColor].hex;
+  const folderDefaults = {
+    labelUnread: folder.defaultLabelUnread || "未完了",
+    labelRead: folder.defaultLabelRead || "完了",
+  };
 
   const filtered = folder.works.filter((w) =>
     w.title.toLowerCase().includes(search.toLowerCase())
@@ -29,8 +34,21 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
     onDelete(w.id);
   }
 
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  function handleTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStart.current.x;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
+    if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
+  }
+
   return (
-    <div className="min-h-screen bg-[#1a1b26] flex flex-col">
+    <div
+      className="min-h-screen bg-[#1a1b26] flex flex-col"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 pt-2 pb-3">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-3">
@@ -49,7 +67,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="作品を検索..."
+              placeholder="項目を検索..."
               className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
             />
             {search && (
@@ -64,7 +82,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
           <div className="mt-20 text-center space-y-2">
             <p className="text-4xl">📖</p>
             <p className="text-[#787c99] text-sm">
-              {search ? `「${search}」は見つかりませんでした` : "作品がありません"}
+              {search ? `「${search}」は見つかりませんでした` : "項目がありません"}
             </p>
             {!search && <p className="text-[#4a5177] text-xs">下のボタンから追加しましょう</p>}
           </div>
@@ -91,10 +109,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
                     </div>
                     <div className="flex items-center gap-3 text-xs text-[#787c99]">
                       <span>
-                        <span
-                          className="inline-block w-2 h-2 rounded-sm mr-1"
-                          style={{ backgroundColor: hex }}
-                        />
+                        <span className="inline-block w-2 h-2 rounded-sm mr-1" style={{ backgroundColor: hex }} />
                         {work.labelRead} {read}
                       </span>
                       <span className="text-[#4a5177]">/ {total}{work.unit}</span>
@@ -134,6 +149,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
       {showAdd && (
         <WorkModal
           mode="add"
+          folderDefaults={folderDefaults}
           onClose={() => setShowAdd(false)}
           onSave={(data) => { onAdd(data); setShowAdd(false); }}
         />

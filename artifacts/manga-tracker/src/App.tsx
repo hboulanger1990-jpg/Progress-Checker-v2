@@ -31,12 +31,12 @@ export default function App() {
   }
 
   // ---- Folder CRUD ----
-  function addFolder(title: string, color: AccentColor) {
-    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, works: [], updatedAt: Date.now() };
+  function addFolder(title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string) {
+    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, defaultLabelUnread, defaultLabelRead, works: [], updatedAt: Date.now() };
     mutate((prev) => [f, ...prev]);
   }
-  function editFolder(id: string, title: string, color: AccentColor) {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, updatedAt: Date.now() } : f));
+  function editFolder(id: string, title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string) {
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, defaultLabelUnread, defaultLabelRead, updatedAt: Date.now() } : f));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));

@@ -46,7 +46,6 @@ export default function SectionModal({ mode, initial, defaults, onClose, onSave 
               value={label}
               onChange={(e) => { setLabel(e.target.value); setError(""); }}
               onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
-              placeholder="例: シーズン1、第1部..."
               className={inputClass}
             />
           </div>
