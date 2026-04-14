@@ -5,9 +5,16 @@ import { ACCENT_COLORS } from "../types";
 interface Props {
   mode: "add" | "edit";
   initial?: Work;
-  folderDefaults?: { labelUnread: string; labelRead: string };
+  folderDefaults?: { labelUnread: string; labelRead: string; unit: string };
   onClose: () => void;
-  onSave: (data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string }) => void;
+  onSave: (data: {
+    title: string;
+    accentColor: AccentColor;
+    labelUnread: string;
+    labelRead: string;
+    unit: string;
+    sectionLabel: string;
+  }) => void;
 }
 
 const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
@@ -15,13 +22,10 @@ const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 export default function WorkModal({ mode, initial, folderDefaults, onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "blue");
-  const [labelUnread, setLabelUnread] = useState(
-    initial?.labelUnread ?? folderDefaults?.labelUnread ?? "未完了"
-  );
-  const [labelRead, setLabelRead] = useState(
-    initial?.labelRead ?? folderDefaults?.labelRead ?? "完了"
-  );
-  const [unit, setUnit] = useState(initial?.unit ?? "");
+  const [labelUnread, setLabelUnread] = useState(initial?.labelUnread ?? folderDefaults?.labelUnread ?? "未完了");
+  const [labelRead, setLabelRead] = useState(initial?.labelRead ?? folderDefaults?.labelRead ?? "完了");
+  const [unit, setUnit] = useState(initial?.unit ?? folderDefaults?.unit ?? "");
+  const [sectionLabel, setSectionLabel] = useState(initial?.sectionLabel ?? "");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,15 +35,25 @@ export default function WorkModal({ mode, initial, folderDefaults, onClose, onSa
     const t = title.trim();
     if (!t) { setError("タイトルを入力してください"); return; }
     if (!labelUnread.trim() || !labelRead.trim()) { setError("ステータス名を入力してください"); return; }
-    onSave({ title: t, accentColor: color, labelUnread: labelUnread.trim(), labelRead: labelRead.trim(), unit: unit.trim() });
+    onSave({
+      title: t,
+      accentColor: color,
+      labelUnread: labelUnread.trim(),
+      labelRead: labelRead.trim(),
+      unit: unit.trim(),
+      sectionLabel: sectionLabel.trim(),
+    });
   }
 
   const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
+        style={{ maxHeight: "90dvh" }}
+      >
         <h2 className="text-lg font-bold text-[#c0caf5] mb-5">
           {mode === "add" ? "項目を追加" : "項目を編集"}
         </h2>
@@ -83,9 +97,20 @@ export default function WorkModal({ mode, initial, folderDefaults, onClose, onSa
               <input value={labelRead} onChange={(e) => setLabelRead(e.target.value)} className={inputClass} />
             </div>
           </div>
-          <div>
-            <label className="block text-xs text-[#787c99] mb-1">単位（省略可）</label>
-            <input value={unit} onChange={(e) => setUnit(e.target.value)} className={inputClass} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-[#787c99] mb-1">単位（省略可）</label>
+              <input value={unit} onChange={(e) => setUnit(e.target.value)} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs text-[#787c99] mb-1">セクションの呼称（省略可）</label>
+              <input
+                value={sectionLabel}
+                onChange={(e) => setSectionLabel(e.target.value)}
+                placeholder="セクション"
+                className={`${inputClass} placeholder-[#4a5177]`}
+              />
+            </div>
           </div>
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
         </div>

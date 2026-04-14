@@ -24,6 +24,7 @@ export interface Work {
   labelUnread: string;
   labelRead: string;
   unit: string;
+  sectionLabel?: string;
   sections: Section[];
   updatedAt: number;
 }
@@ -34,6 +35,7 @@ export interface Folder {
   accentColor: AccentColor;
   defaultLabelUnread?: string;
   defaultLabelRead?: string;
+  defaultUnit?: string;
   works: Work[];
   updatedAt: number;
 }

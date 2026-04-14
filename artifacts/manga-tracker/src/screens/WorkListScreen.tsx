@@ -8,8 +8,15 @@ interface Props {
   folder: Folder;
   onBack: () => void;
   onSelect: (w: Work) => void;
-  onAdd: (data: { title: string; accentColor: import("../types").AccentColor; labelUnread: string; labelRead: string; unit: string }) => void;
-  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit">>) => void;
+  onAdd: (data: {
+    title: string;
+    accentColor: import("../types").AccentColor;
+    labelUnread: string;
+    labelRead: string;
+    unit: string;
+    sectionLabel: string;
+  }) => void;
+  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) => void;
   onDelete: (workId: string) => void;
 }
 
@@ -23,6 +30,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
   const folderDefaults = {
     labelUnread: folder.defaultLabelUnread || "未完了",
     labelRead: folder.defaultLabelRead || "完了",
+    unit: folder.defaultUnit || "",
   };
 
   const filtered = folder.works.filter((w) =>
@@ -91,6 +99,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
             {filtered.map((work) => {
               const { read, total, percent } = calcWorkProgress(work.sections);
               const hex = ACCENT_COLORS[work.accentColor].hex;
+              const secLabel = work.sectionLabel || "セクション";
               return (
                 <div key={work.id} className="relative">
                   <button
@@ -113,7 +122,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
                         {work.labelRead} {read}
                       </span>
                       <span className="text-[#4a5177]">/ {total}{work.unit}</span>
-                      <span className="text-[#4a5177]">· {work.sections.length}セクション</span>
+                      <span className="text-[#4a5177]">· {work.sections.length}{secLabel}</span>
                     </div>
                   </button>
                   <div className="absolute top-3 right-3 flex gap-1">

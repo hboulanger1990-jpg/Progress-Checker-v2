@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Folder, Work, Section } from "../types";
 import { ACCENT_COLORS } from "../types";
 import { calcWorkProgress, calcSectionProgress } from "../storage";
@@ -9,7 +9,7 @@ interface Props {
   folder: Folder;
   work: Work;
   onBack: () => void;
-  onEditWork: (updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit">>) => void;
+  onEditWork: (updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) => void;
   onDeleteWork: () => void;
   onAddSection: (s: Omit<Section, "id" | "statuses">) => void;
   onEditSection: (sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum">>) => void;
@@ -22,6 +22,8 @@ type SectionModalState =
   | null
   | { mode: "add" }
   | { mode: "edit"; section: Section };
+
+const LAST_TOGGLE_PREFIX = "pc-lt-";
 
 export default function WorkDetailScreen({
   folder, work, onBack, onEditWork, onDeleteWork,
@@ -38,6 +40,21 @@ export default function WorkDetailScreen({
   const accentHex = ACCENT_COLORS[work.accentColor].hex;
   const folderHex = ACCENT_COLORS[folder.accentColor].hex;
   const { read, total, percent } = calcWorkProgress(work.sections);
+  const secLabel = work.sectionLabel || "セクション";
+  const ltKey = `${LAST_TOGGLE_PREFIX}${work.id}`;
+
+  // Auto-scroll to last toggled item on mount
+  useEffect(() => {
+    const raw = localStorage.getItem(ltKey);
+    if (!raw) return;
+    try {
+      const { sectionId, num } = JSON.parse(raw) as { sectionId: string; num: number };
+      setTimeout(() => {
+        const el = document.getElementById(`item-${sectionId}-${num}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+    } catch { /* ignore */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -61,6 +78,7 @@ export default function WorkDetailScreen({
 
   function handleToggle(sectionId: string, num: number) {
     onToggleItem(sectionId, num);
+    localStorage.setItem(ltKey, JSON.stringify({ sectionId, num }));
     requestAnimationFrame(() => {
       const el = document.getElementById(`item-${sectionId}-${num}`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -72,8 +90,11 @@ export default function WorkDetailScreen({
     const e = parseInt(rangeEnd, 10);
     if (isNaN(s) || isNaN(e) || s < 1 || e < 1) { setRangeError("正しい数値を入力してください"); return; }
     if (s > e) { setRangeError("開始番号は終了番号以下にしてください"); return; }
-    const label = toRead ? work.labelRead : work.labelUnread;
-    if (!window.confirm(`${s}〜${e} を「${label}」に変更します。よろしいですか？`)) return;
+    const count = e - s + 1;
+    if (count >= 10) {
+      const label = toRead ? work.labelRead : work.labelUnread;
+      if (!window.confirm(`${s}〜${e}（${count}件）を「${label}」に変更します。よろしいですか？`)) return;
+    }
     setRangeError("");
     onBulkRange(s, e, toRead);
     setRangeStart("");
@@ -81,12 +102,17 @@ export default function WorkDetailScreen({
   }
 
   function getAddSectionDefaults() {
-    const last = work.sections[work.sections.length - 1];
-    const startNum = last ? last.endNum + 1 : 1;
+    const n = work.sections.length;
+    if (n === 0) {
+      return { label: "1", startNum: 1, endNum: undefined };
+    }
+    const last = work.sections[n - 1];
+    const startNum = last.endNum + 1;
+    const lastCount = last.endNum - last.startNum + 1;
     return {
-      label: `${work.sections.length + 1}`,
+      label: `${n + 1}`,
       startNum,
-      endNum: startNum + 11,
+      endNum: startNum + lastCount - 1,
     };
   }
 
@@ -181,13 +207,13 @@ export default function WorkDetailScreen({
         {work.sections.length === 0 ? (
           <div className="mt-12 text-center space-y-2">
             <p className="text-3xl">📋</p>
-            <p className="text-[#787c99] text-sm">セクションがありません</p>
+            <p className="text-[#787c99] text-sm">{secLabel}がありません</p>
             <button
               onClick={() => setSectionModal({ mode: "add" })}
               className="mt-2 px-6 py-2.5 rounded-xl text-sm font-bold text-[#1a1b26] active:scale-95 transition-transform"
               style={{ backgroundColor: accentHex }}
             >
-              ＋ セクションを追加
+              ＋ {secLabel}を追加
             </button>
           </div>
         ) : (
@@ -196,7 +222,6 @@ export default function WorkDetailScreen({
               const { read: sRead, total: sTotal } = calcSectionProgress(section);
               return (
                 <div key={section.id}>
-                  {/* Section header */}
                   <div className="flex items-center justify-between mb-2 px-1">
                     <div>
                       <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
@@ -215,7 +240,6 @@ export default function WorkDetailScreen({
                       >🗑</button>
                     </div>
                   </div>
-                  {/* Grid */}
                   <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
                     {Array.from(
                       { length: section.endNum - section.startNum + 1 },
@@ -244,13 +268,12 @@ export default function WorkDetailScreen({
               );
             })}
 
-            {/* Add section button */}
             <button
               onClick={() => setSectionModal({ mode: "add" })}
               className="w-full py-3 rounded-xl border border-dashed border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform flex items-center justify-center gap-1.5"
             >
               <span>＋</span>
-              <span>セクションを追加</span>
+              <span>{secLabel}を追加</span>
             </button>
           </div>
         )}
@@ -260,7 +283,7 @@ export default function WorkDetailScreen({
       <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/95 to-transparent">
         <div className="max-w-lg mx-auto">
           <div className="bg-[#24283b] border border-[#3b4261] rounded-2xl px-4 py-3">
-            <p className="text-xs text-[#787c99] mb-2.5">範囲指定で一括変更</p>
+            <p className="text-xs text-[#787c99] mb-2.5">範囲指定で一括変更（10件以上で確認）</p>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -310,6 +333,7 @@ export default function WorkDetailScreen({
       {sectionModal?.mode === "add" && (
         <SectionModal
           mode="add"
+          labelName={secLabel}
           defaults={getAddSectionDefaults()}
           onClose={() => setSectionModal(null)}
           onSave={(label, startNum, endNum) => {
@@ -321,6 +345,7 @@ export default function WorkDetailScreen({
       {sectionModal?.mode === "edit" && (
         <SectionModal
           mode="edit"
+          labelName={secLabel}
           initial={sectionModal.section}
           onClose={() => setSectionModal(null)}
           onSave={(label, startNum, endNum) => {

@@ -6,7 +6,13 @@ interface Props {
   mode: "add" | "edit";
   initial?: Folder;
   onClose: () => void;
-  onSave: (title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string) => void;
+  onSave: (
+    title: string,
+    color: AccentColor,
+    defaultLabelUnread: string,
+    defaultLabelRead: string,
+    defaultUnit: string
+  ) => void;
 }
 
 const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
@@ -16,6 +22,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "blue");
   const [defaultLabelUnread, setDefaultLabelUnread] = useState(initial?.defaultLabelUnread ?? "");
   const [defaultLabelRead, setDefaultLabelRead] = useState(initial?.defaultLabelRead ?? "");
+  const [defaultUnit, setDefaultUnit] = useState(initial?.defaultUnit ?? "");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -24,15 +31,18 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   function handleSave() {
     const t = title.trim();
     if (!t) { setError("タイトルを入力してください"); return; }
-    onSave(t, color, defaultLabelUnread.trim(), defaultLabelRead.trim());
+    onSave(t, color, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim());
   }
 
-  const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]";
+  const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
+        style={{ maxHeight: "90dvh" }}
+      >
         <h2 className="text-lg font-bold text-[#c0caf5] mb-5">
           {mode === "add" ? "フォルダを追加" : "フォルダを編集"}
         </h2>
@@ -67,24 +77,20 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             </div>
           </div>
           <div className="border-t border-[#3b4261] pt-4">
-            <p className="text-xs text-[#787c99] mb-3">このフォルダ内の作品で使うデフォルトのラベル（省略可）</p>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="text-xs text-[#787c99] mb-3">新規項目のデフォルト設定（省略可）</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
-                <input
-                  value={defaultLabelUnread}
-                  onChange={(e) => setDefaultLabelUnread(e.target.value)}
-                  className={inputClass}
-                />
+                <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} className={inputClass} />
               </div>
               <div>
                 <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
-                <input
-                  value={defaultLabelRead}
-                  onChange={(e) => setDefaultLabelRead(e.target.value)}
-                  className={inputClass}
-                />
+                <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} className={inputClass} />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs text-[#787c99] mb-1">単位</label>
+              <input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} className={inputClass} />
             </div>
           </div>
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
