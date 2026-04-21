@@ -32,7 +32,10 @@ export async function loadFoldersFromCloud(userId: string): Promise<Folder[] | n
 export async function saveFoldersToCloud(userId: string, folders: Folder[]): Promise<void> {
   await supabase
     .from("progress")
-    .upsert({ user_id: userId, data: folders, updated_at: new Date().toISOString() });
+    .upsert(
+      { user_id: userId, data: folders, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
 }
 
 // ---- ユーティリティ ----
