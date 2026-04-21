@@ -68,7 +68,7 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
           </div>
         )}
 
-       {tab === "import" && (
+        {tab === "import" && (
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
             <p className="text-xs text-[#787c99]">バックアップしたJSONファイルを選択するか、テキストを貼り付けてインポートします。</p>
             <input
@@ -102,3 +102,7 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
