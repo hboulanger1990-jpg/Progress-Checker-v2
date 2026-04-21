@@ -22,9 +22,9 @@ export function saveFolders(folders: Folder[]): void {
 export async function loadFoldersFromCloud(userId: string): Promise<Folder[] | null> {
   const { data, error } = await supabase
     .from("progress")
-    .select("data")
+    .select("*")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
   if (error || !data) return null;
   return data.data as Folder[];
 }
