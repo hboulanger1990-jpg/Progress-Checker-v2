@@ -1,10 +1,12 @@
+import { supabase } from "./lib/supabase";
 import type { Folder, Section } from "./types";
 
-const STORAGE_KEY = "progress-checker-v3";
+const LOCAL_KEY = "progress-checker-v3";
 
+// ---- ローカル（未ログイン時） ----
 export function loadFolders(): Folder[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(LOCAL_KEY);
     if (raw) return JSON.parse(raw) as Folder[];
   } catch {}
   return [];
@@ -12,10 +14,28 @@ export function loadFolders(): Folder[] {
 
 export function saveFolders(folders: Folder[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(folders));
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(folders));
   } catch {}
 }
 
+// ---- Supabase（ログイン時） ----
+export async function loadFoldersFromCloud(userId: string): Promise<Folder[] | null> {
+  const { data, error } = await supabase
+    .from("progress")
+    .select("data")
+    .eq("user_id", userId)
+    .single();
+  if (error || !data) return null;
+  return data.data as Folder[];
+}
+
+export async function saveFoldersToCloud(userId: string, folders: Folder[]): Promise<void> {
+  await supabase
+    .from("progress")
+    .upsert({ user_id: userId, data: folders, updated_at: new Date().toISOString() });
+}
+
+// ---- ユーティリティ ----
 export function calcSectionProgress(section: Section): { total: number; read: number } {
   const total = Math.max(0, section.endNum - section.startNum + 1);
   const read = Object.keys(section.statuses).filter((k) => {
