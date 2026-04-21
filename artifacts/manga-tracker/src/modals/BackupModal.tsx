@@ -68,14 +68,29 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
           </div>
         )}
 
-        {tab === "import" && (
+       {tab === "import" && (
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
-            <p className="text-xs text-[#787c99]">バックアップしたJSONを貼り付けてインポートします。現在のデータは上書きされます。</p>
+            <p className="text-xs text-[#787c99]">バックアップしたJSONファイルを選択するか、テキストを貼り付けてインポートします。</p>
+            <input
+              type="file"
+              accept=".json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  setImportText(ev.target?.result as string);
+                  setImportError("");
+                };
+                reader.readAsText(file);
+              }}
+              className="text-xs text-[#787c99] file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#3b4261] file:text-[#c0caf5] file:text-xs"
+            />
             <textarea
               value={importText}
               onChange={(e) => { setImportText(e.target.value); setImportError(""); }}
-              placeholder="JSONを貼り付け..."
-              className="flex-1 min-h-[160px] bg-[#24283b] text-[#c0caf5] text-xs border border-[#3b4261] rounded-xl p-3 outline-none font-mono resize-none placeholder-[#4a5177] focus:border-[#7aa2f7] transition-colors"
+              placeholder="またはJSONを貼り付け..."
+              className="flex-1 min-h-[120px] bg-[#24283b] text-[#c0caf5] text-xs border border-[#3b4261] rounded-xl p-3 outline-none font-mono resize-none placeholder-[#4a5177] focus:border-[#7aa2f7] transition-colors"
             />
             {importError && <p className="text-xs text-[#f7768e]">{importError}</p>}
             <button
@@ -87,7 +102,3 @@ export default function BackupModal({ data, onClose, onImport }: Props) {
             </button>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
