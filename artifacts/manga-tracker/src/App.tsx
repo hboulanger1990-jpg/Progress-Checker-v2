@@ -56,7 +56,7 @@ export default function App() {
     if (loading) return;
     saveFolders(folders);
     if (user) saveFoldersToCloud(user.id, folders);
-  }, [folders, user, loading]);
+  }, [folders]);
 
   // ---- Google login ----
   async function signInWithGoogle() {
