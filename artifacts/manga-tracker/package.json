@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-  "@supabase/supabase-js": "^2.49.4"
+  "@supabase/supabase-js": "^2.49.4",
 　},
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
