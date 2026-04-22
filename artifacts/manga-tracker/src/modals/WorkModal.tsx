@@ -14,6 +14,7 @@ interface Props {
     labelRead: string;
     unit: string;
     sectionLabel: string;
+    tags: string[];
   }) => void;
 }
 
@@ -26,10 +27,23 @@ export default function WorkModal({ mode, initial, folderDefaults, onClose, onSa
   const [labelRead, setLabelRead] = useState(initial?.labelRead ?? folderDefaults?.labelRead ?? "完了");
   const [unit, setUnit] = useState(initial?.unit ?? folderDefaults?.unit ?? "");
   const [sectionLabel, setSectionLabel] = useState(initial?.sectionLabel ?? "");
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
+
+  function addTag() {
+    const t = tagInput.trim();
+    if (!t || tags.includes(t)) { setTagInput(""); return; }
+    setTags([...tags, t]);
+    setTagInput("");
+  }
+
+  function removeTag(tag: string) {
+    setTags(tags.filter((t) => t !== tag));
+  }
 
   function handleSave() {
     const t = title.trim();
@@ -42,6 +56,7 @@ export default function WorkModal({ mode, initial, folderDefaults, onClose, onSa
       labelRead: labelRead.trim(),
       unit: unit.trim(),
       sectionLabel: sectionLabel.trim(),
+      tags,
     });
   }
 
@@ -112,6 +127,38 @@ export default function WorkModal({ mode, initial, folderDefaults, onClose, onSa
               />
             </div>
           </div>
+
+          {/* タグ入力 */}
+          <div>
+            <label className="block text-xs text-[#787c99] mb-1">タグ（省略可）</label>
+            <div className="flex gap-2">
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+                placeholder="タグを入力してEnter"
+                className={`${inputClass} placeholder-[#4a5177]`}
+              />
+              <button
+                onClick={addTag}
+                className="shrink-0 px-3 py-2 rounded-xl bg-[#2a2d3e] border border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform"
+              >追加</button>
+            </div>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2a2d3e] border border-[#3b4261] text-xs text-[#a9b1d6]"
+                  >
+                    #{tag}
+                    <button onClick={() => removeTag(tag)} className="text-[#f7768e] leading-none">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
         </div>
         <div className="mt-6 flex gap-3">
