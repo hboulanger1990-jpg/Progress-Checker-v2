@@ -25,6 +25,7 @@ export interface Work {
   labelRead: string;
   unit: string;
   sectionLabel?: string;
+  tags?: string[];
   sections: Section[];
   updatedAt: number;
 }
