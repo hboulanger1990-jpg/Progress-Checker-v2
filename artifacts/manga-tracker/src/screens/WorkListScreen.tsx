@@ -15,13 +15,15 @@ interface Props {
     labelRead: string;
     unit: string;
     sectionLabel: string;
+    tags: string[];
   }) => void;
-  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) => void;
+  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) => void;
   onDelete: (workId: string) => void;
 }
 
 export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit, onDelete }: Props) {
   const [search, setSearch] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Work | null>(null);
   const touchStart = useRef({ x: 0, y: 0 });
@@ -33,9 +35,18 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
     unit: folder.defaultUnit || "",
   };
 
-  const filtered = folder.works.filter((w) =>
-    w.title.toLowerCase().includes(search.toLowerCase())
-  );
+  // フォルダ内の全タグを収集（重複なし）
+  const allTags = Array.from(
+    new Set(folder.works.flatMap((w) => w.tags ?? []))
+  ).sort();
+
+  const filtered = folder.works.filter((w) => {
+    const matchSearch =
+      w.title.toLowerCase().includes(search.toLowerCase()) ||
+      (w.tags ?? []).some((t) => t.toLowerCase().includes(search.toLowerCase()));
+    const matchTag = selectedTag ? (w.tags ?? []).includes(selectedTag) : true;
+    return matchSearch && matchTag;
+  });
 
   function handleDelete(w: Work) {
     if (!window.confirm(`「${w.title}」を削除しますか？この操作は元に戻せません。`)) return;
@@ -75,13 +86,32 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="項目を検索..."
+              placeholder="項目・タグを検索..."
               className="w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors placeholder-[#4a5177]"
             />
             {search && (
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99] text-lg leading-none">✕</button>
             )}
           </div>
+          {/* タグ一覧フィルター */}
+          {allTags.length > 0 && (
+            <div className="flex gap-1.5 mt-2 overflow-x-auto pb-0.5 scrollbar-hide">
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  className="shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors active:scale-95"
+                  style={
+                    selectedTag === tag
+                      ? { backgroundColor: folderHex, color: "#1a1b26" }
+                      : { backgroundColor: "#2a2d3e", color: "#787c99", border: "1px solid #3b4261" }
+                  }
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -90,9 +120,9 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
           <div className="mt-20 text-center space-y-2">
             <p className="text-4xl">📖</p>
             <p className="text-[#787c99] text-sm">
-              {search ? `「${search}」は見つかりませんでした` : "項目がありません"}
+              {search || selectedTag ? "該当する項目が見つかりませんでした" : "項目がありません"}
             </p>
-            {!search && <p className="text-[#4a5177] text-xs">下のボタンから追加しましょう</p>}
+            {!search && !selectedTag && <p className="text-[#4a5177] text-xs">下のボタンから追加しましょう</p>}
           </div>
         ) : (
           <div className="space-y-2">
@@ -124,6 +154,20 @@ export default function WorkListScreen({ folder, onBack, onSelect, onAdd, onEdit
                       <span className="text-[#4a5177]">/ {total}{work.unit}</span>
                       <span className="text-[#4a5177]">· {work.sections.length}{secLabel}</span>
                     </div>
+                    {/* タグ表示 */}
+                    {(work.tags ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {(work.tags ?? []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-0.5 rounded-full text-xs"
+                            style={{ backgroundColor: `${hex}22`, color: hex }}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </button>
                   <div className="absolute top-3 right-3 flex gap-1">
                     <button
