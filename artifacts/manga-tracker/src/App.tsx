@@ -116,11 +116,11 @@ export default function App() {
   }
 
   // ---- Work CRUD ----
-  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; }) {
+  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; tags: string[]; }) {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }));
   }
-  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) {
+  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
   function deleteWork(folderId: string, workId: string) {
