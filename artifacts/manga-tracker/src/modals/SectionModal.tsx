@@ -6,28 +6,40 @@ interface Props {
   initial?: Section;
   defaults?: { label: string; startNum: number; endNum?: number };
   labelName?: string;
+  workId: string;
   onClose: () => void;
   onSave: (label: string, startNum: number, endNum: number, sectionMode: "number" | "text", items: string[]) => void;
 }
 
-export default function SectionModal({ mode, initial, defaults, labelName = "セクション", onClose, onSave }: Props) {
+const SECTION_MODE_KEY = "pc-section-mode-";
+
+export default function SectionModal({ mode, initial, defaults, labelName = "セクション", workId, onClose, onSave }: Props) {
   const [label, setLabel] = useState(initial?.label ?? defaults?.label ?? "");
   const [startNum, setStartNum] = useState(String(initial?.startNum ?? defaults?.startNum ?? 1));
   const [endNum, setEndNum] = useState(
     initial?.endNum != null ? String(initial.endNum) :
     defaults?.endNum != null ? String(defaults.endNum) : ""
   );
-  const [sectionMode, setSectionMode] = useState<"number" | "text">(initial?.mode ?? "number");
+
+  // ①前回使ったモードをlocalStorageから復元
+  const savedMode = localStorage.getItem(SECTION_MODE_KEY + workId) as "number" | "text" | null;
+  const [sectionMode, setSectionMode] = useState<"number" | "text">(
+    initial?.mode ?? savedMode ?? "number"
+  );
   const [items, setItems] = useState<string[]>(initial?.items ?? [""]);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
 
+  function handleSetMode(m: "number" | "text") {
+    setSectionMode(m);
+    localStorage.setItem(SECTION_MODE_KEY + workId, m);
+  }
+
   function handleItemChange(index: number, value: string) {
     const next = [...items];
     next[index] = value;
-    // 最後の入力欄に文字が入ったら次の欄を自動追加
     if (index === items.length - 1 && value.trim() !== "") {
       next.push("");
     }
@@ -63,7 +75,11 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      {/* ②テキストモード中は外側クリックで閉じない */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={sectionMode === "text" ? undefined : onClose}
+      />
       <div
         className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
         style={{ maxHeight: "90dvh" }}
@@ -88,7 +104,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
             <label className="block text-xs text-[#787c99] mb-2">入力モード</label>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => setSectionMode("number")}
+                onClick={() => handleSetMode("number")}
                 className="py-2 rounded-xl border text-sm font-medium transition-colors active:scale-95"
                 style={
                   sectionMode === "number"
@@ -99,7 +115,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                 🔢 数字
               </button>
               <button
-                onClick={() => setSectionMode("text")}
+                onClick={() => handleSetMode("text")}
                 className="py-2 rounded-xl border text-sm font-medium transition-colors active:scale-95"
                 style={
                   sectionMode === "text"
@@ -156,6 +172,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-[#4a5177] mt-2">※テキスト入力中は外側クリックで閉じません</p>
             </div>
           )}
 
