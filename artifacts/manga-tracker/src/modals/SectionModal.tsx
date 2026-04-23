@@ -20,8 +20,6 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
     initial?.endNum != null ? String(initial.endNum) :
     defaults?.endNum != null ? String(defaults.endNum) : ""
   );
-
-  // ①前回使ったモードをlocalStorageから復元
   const savedMode = localStorage.getItem(SECTION_MODE_KEY + workId) as "number" | "text" | null;
   const [sectionMode, setSectionMode] = useState<"number" | "text">(
     initial?.mode ?? savedMode ?? "number"
@@ -44,6 +42,18 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
       next.push("");
     }
     setItems(next);
+  }
+
+  function handleItemPaste(index: number, e: React.ClipboardEvent<HTMLInputElement>) {
+    const pasted = e.clipboardData.getData("text");
+    const lines = pasted.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "");
+    if (lines.length <= 1) return; // 1行なら通常のペーストに任せる
+    e.preventDefault();
+    const before = items.slice(0, index).filter((_, i) => i < index);
+    const after = items.slice(index + 1).filter((l) => l.trim() !== "");
+    const next = [...before, ...lines, ...after, ""];
+    setItems(next);
+    setError("");
   }
 
   function removeItem(index: number) {
@@ -75,7 +85,6 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* ②テキストモード中は外側クリックで閉じない */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={sectionMode === "text" ? undefined : onClose}
@@ -99,7 +108,6 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
             />
           </div>
 
-          {/* モード切替 */}
           <div>
             <label className="block text-xs text-[#787c99] mb-2">入力モード</label>
             <div className="grid grid-cols-2 gap-2">
@@ -153,13 +161,16 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
             </div>
           ) : (
             <div>
-              <label className="block text-xs text-[#787c99] mb-2">項目（1行1項目）</label>
+              <label className="block text-xs text-[#787c99] mb-2">
+                項目（1行1項目・複数行のコピペ一括入力可）
+              </label>
               <div className="space-y-2">
                 {items.map((item, index) => (
                   <div key={index} className="flex gap-2 items-center">
                     <input
                       value={item}
                       onChange={(e) => { handleItemChange(index, e.target.value); setError(""); }}
+                      onPaste={(e) => handleItemPaste(index, e)}
                       placeholder={`項目 ${index + 1}`}
                       className={`${inputClass} placeholder-[#4a5177]`}
                     />
