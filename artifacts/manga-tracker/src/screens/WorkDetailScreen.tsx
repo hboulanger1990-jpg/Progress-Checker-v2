@@ -43,7 +43,6 @@ export default function WorkDetailScreen({
   const secLabel = work.sectionLabel || "セクション";
   const ltKey = `${LAST_TOGGLE_PREFIX}${work.id}`;
 
-  // Auto-scroll to last toggled item on mount
   useEffect(() => {
     const raw = localStorage.getItem(ltKey);
     if (!raw) return;
@@ -103,17 +102,11 @@ export default function WorkDetailScreen({
 
   function getAddSectionDefaults() {
     const n = work.sections.length;
-    if (n === 0) {
-      return { label: "1", startNum: 1, endNum: undefined };
-    }
+    if (n === 0) return { label: "1", startNum: 1, endNum: undefined };
     const last = work.sections[n - 1];
     const startNum = last.endNum + 1;
     const lastCount = last.endNum - last.startNum + 1;
-    return {
-      label: `${n + 1}`,
-      startNum,
-      endNum: startNum + lastCount - 1,
-    };
+    return { label: `${n + 1}`, startNum, endNum: startNum + lastCount - 1 };
   }
 
   const inputClass = "w-0 flex-1 bg-[#1a1b26] text-[#c0caf5] border border-[#3b4261] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#7aa2f7] transition-colors text-center placeholder-[#4a5177]";
@@ -124,7 +117,6 @@ export default function WorkDetailScreen({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 py-3">
         <div className="max-w-lg mx-auto relative">
           <div className="flex items-center gap-3">
@@ -154,10 +146,7 @@ export default function WorkDetailScreen({
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
               <div className="absolute right-0 top-12 z-20 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-xl min-w-[160px] overflow-hidden">
-                <button
-                  onClick={handleDelete}
-                  className="w-full px-4 py-3 text-left text-sm text-[#f7768e] hover:bg-[#24283b] transition-colors"
-                >
+                <button onClick={handleDelete} className="w-full px-4 py-3 text-left text-sm text-[#f7768e] hover:bg-[#24283b] transition-colors">
                   🗑 削除する
                 </button>
               </div>
@@ -166,7 +155,6 @@ export default function WorkDetailScreen({
         </div>
       </header>
 
-      {/* Stats */}
       <div className="px-4 py-3 max-w-lg mx-auto w-full">
         <div className="bg-[#24283b] border border-[#3b4261] rounded-2xl px-4 py-3">
           <div className="flex items-center justify-between mb-2">
@@ -180,15 +168,11 @@ export default function WorkDetailScreen({
             <span className="text-xs font-bold" style={{ color: accentHex }}>{percent}%</span>
           </div>
           <div className="h-2 bg-[#1a1b26] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${percent}%`, backgroundColor: accentHex }}
-            />
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: accentHex }} />
           </div>
         </div>
       </div>
 
-      {/* Legend */}
       <div className="px-4 max-w-lg mx-auto w-full mb-2">
         <div className="flex gap-4 text-xs text-[#787c99]">
           <span className="flex items-center gap-1.5">
@@ -202,7 +186,6 @@ export default function WorkDetailScreen({
         </div>
       </div>
 
-      {/* Sections */}
       <main className="flex-1 px-3 max-w-lg mx-auto w-full pb-48">
         {work.sections.length === 0 ? (
           <div className="mt-12 text-center space-y-2">
@@ -226,7 +209,10 @@ export default function WorkDetailScreen({
                     <div>
                       <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
                       <span className="text-xs text-[#787c99] ml-2">
-                        {section.startNum}〜{section.endNum}{work.unit} · {work.labelRead} {sRead}/{sTotal}
+                        {section.mode === "text"
+                          ? `${sTotal}項目 · ${work.labelRead} ${sRead}/${sTotal}`
+                          : `${section.startNum}〜${section.endNum}${work.unit} · ${work.labelRead} ${sRead}/${sTotal}`
+                        }
                       </span>
                     </div>
                     <div className="flex gap-1">
@@ -240,6 +226,7 @@ export default function WorkDetailScreen({
                       >🗑</button>
                     </div>
                   </div>
+
                   {section.mode === "text" && section.items ? (
                     <div className="space-y-1.5">
                       {section.items.map((itemLabel, idx) => {
@@ -303,49 +290,22 @@ export default function WorkDetailScreen({
         )}
       </main>
 
-      {/* Bottom: Range bulk */}
       <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-[#1a1b26] via-[#1a1b26]/95 to-transparent">
         <div className="max-w-lg mx-auto">
           <div className="bg-[#24283b] border border-[#3b4261] rounded-2xl px-4 py-3">
             <p className="text-xs text-[#787c99] mb-2.5">範囲指定で一括変更（10件以上で確認）</p>
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={rangeStart}
-                onChange={(e) => { setRangeStart(e.target.value); setRangeError(""); }}
-                placeholder="開始"
-                min={1}
-                className={inputClass}
-              />
+              <input type="number" value={rangeStart} onChange={(e) => { setRangeStart(e.target.value); setRangeError(""); }} placeholder="開始" min={1} className={inputClass} />
               <span className="text-[#787c99] text-sm shrink-0">〜</span>
-              <input
-                type="number"
-                value={rangeEnd}
-                onChange={(e) => { setRangeEnd(e.target.value); setRangeError(""); }}
-                placeholder="終了"
-                min={1}
-                className={inputClass}
-              />
-              <button
-                onClick={() => handleBulkRange(true)}
-                className="shrink-0 font-bold px-3 py-2.5 rounded-xl text-sm active:scale-95 transition-transform text-[#1a1b26]"
-                style={{ backgroundColor: accentHex }}
-              >
-                {work.labelRead}
-              </button>
-              <button
-                onClick={() => handleBulkRange(false)}
-                className="shrink-0 font-bold px-3 py-2.5 rounded-xl text-sm active:scale-95 transition-transform text-[#c0caf5] bg-[#1a1b26] border border-[#3b4261]"
-              >
-                {work.labelUnread}
-              </button>
+              <input type="number" value={rangeEnd} onChange={(e) => { setRangeEnd(e.target.value); setRangeError(""); }} placeholder="終了" min={1} className={inputClass} />
+              <button onClick={() => handleBulkRange(true)} className="shrink-0 font-bold px-3 py-2.5 rounded-xl text-sm active:scale-95 transition-transform text-[#1a1b26]" style={{ backgroundColor: accentHex }}>{work.labelRead}</button>
+              <button onClick={() => handleBulkRange(false)} className="shrink-0 font-bold px-3 py-2.5 rounded-xl text-sm active:scale-95 transition-transform text-[#c0caf5] bg-[#1a1b26] border border-[#3b4261]">{work.labelUnread}</button>
             </div>
             {rangeError && <p className="text-xs text-[#f7768e] mt-1.5">{rangeError}</p>}
           </div>
         </div>
       </div>
 
-      {/* Modals */}
       {showWorkEdit && (
         <WorkModal
           mode="edit"
@@ -358,6 +318,7 @@ export default function WorkDetailScreen({
         <SectionModal
           mode="add"
           labelName={secLabel}
+          workId={work.id}
           defaults={getAddSectionDefaults()}
           onClose={() => setSectionModal(null)}
           onSave={(label, startNum, endNum, sectionMode, items) => {
@@ -370,6 +331,7 @@ export default function WorkDetailScreen({
         <SectionModal
           mode="edit"
           labelName={secLabel}
+          workId={work.id}
           initial={sectionModal.section}
           onClose={() => setSectionModal(null)}
           onSave={(label, startNum, endNum, sectionMode, items) => {
