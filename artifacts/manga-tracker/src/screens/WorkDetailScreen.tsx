@@ -12,7 +12,7 @@ interface Props {
   onEditWork: (updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) => void;
   onDeleteWork: () => void;
   onAddSection: (s: Omit<Section, "id" | "statuses">) => void;
-  onEditSection: (sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum">>) => void;
+  onEditSection: (sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items">>) => void;
   onDeleteSection: (sectionId: string) => void;
   onToggleItem: (sectionId: string, num: number) => void;
   onBulkRange: (start: number, end: number, toRead: boolean) => void;
@@ -240,30 +240,54 @@ export default function WorkDetailScreen({
                       >🗑</button>
                     </div>
                   </div>
-                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-                    {Array.from(
-                      { length: section.endNum - section.startNum + 1 },
-                      (_, i) => section.startNum + i
-                    ).map((num) => {
-                      const isRead = !!section.statuses[num];
-                      return (
-                        <button
-                          key={num}
-                          id={`item-${section.id}-${num}`}
-                          onClick={() => handleToggle(section.id, num)}
-                          className="border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation active:scale-90 transition-all duration-100"
-                          style={
-                            isRead
-                              ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
-                              : { backgroundColor: "#24283b", color: "#4a5177", borderColor: "#3b4261" }
-                          }
-                          aria-label={`${num}${work.unit}`}
-                        >
-                          {num}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {section.mode === "text" && section.items ? (
+                    <div className="space-y-1.5">
+                      {section.items.map((itemLabel, idx) => {
+                        const num = section.startNum + idx;
+                        const isRead = !!section.statuses[num];
+                        return (
+                          <button
+                            key={num}
+                            id={`item-${section.id}-${num}`}
+                            onClick={() => handleToggle(section.id, num)}
+                            className="w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation active:scale-[0.98] transition-all duration-100"
+                            style={
+                              isRead
+                                ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
+                                : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
+                            }
+                          >
+                            {itemLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
+                      {Array.from(
+                        { length: section.endNum - section.startNum + 1 },
+                        (_, i) => section.startNum + i
+                      ).map((num) => {
+                        const isRead = !!section.statuses[num];
+                        return (
+                          <button
+                            key={num}
+                            id={`item-${section.id}-${num}`}
+                            onClick={() => handleToggle(section.id, num)}
+                            className="border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation active:scale-90 transition-all duration-100"
+                            style={
+                              isRead
+                                ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
+                                : { backgroundColor: "#24283b", color: "#4a5177", borderColor: "#3b4261" }
+                            }
+                            aria-label={`${num}${work.unit}`}
+                          >
+                            {num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -336,8 +360,8 @@ export default function WorkDetailScreen({
           labelName={secLabel}
           defaults={getAddSectionDefaults()}
           onClose={() => setSectionModal(null)}
-          onSave={(label, startNum, endNum) => {
-            onAddSection({ label, startNum, endNum });
+          onSave={(label, startNum, endNum, sectionMode, items) => {
+            onAddSection({ label, startNum, endNum, mode: sectionMode, items });
             setSectionModal(null);
           }}
         />
@@ -348,8 +372,8 @@ export default function WorkDetailScreen({
           labelName={secLabel}
           initial={sectionModal.section}
           onClose={() => setSectionModal(null)}
-          onSave={(label, startNum, endNum) => {
-            onEditSection(sectionModal.section.id, { label, startNum, endNum });
+          onSave={(label, startNum, endNum, sectionMode, items) => {
+            onEditSection(sectionModal.section.id, { label, startNum, endNum, mode: sectionMode, items });
             setSectionModal(null);
           }}
         />
