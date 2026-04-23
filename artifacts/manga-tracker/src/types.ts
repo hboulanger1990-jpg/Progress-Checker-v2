@@ -14,6 +14,8 @@ export interface Section {
   label: string;
   startNum: number;
   endNum: number;
+　mode?: "number" | "text";
+  items?: string[];
   statuses: Record<number, "read">;
 }
 
