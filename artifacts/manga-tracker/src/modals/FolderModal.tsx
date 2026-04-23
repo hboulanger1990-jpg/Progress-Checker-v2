@@ -11,7 +11,8 @@ interface Props {
     color: AccentColor,
     defaultLabelUnread: string,
     defaultLabelRead: string,
-    defaultUnit: string
+    defaultUnit: string,
+    folderType: "progress" | "completion"
   ) => void;
 }
 
@@ -23,6 +24,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [defaultLabelUnread, setDefaultLabelUnread] = useState(initial?.defaultLabelUnread ?? "");
   const [defaultLabelRead, setDefaultLabelRead] = useState(initial?.defaultLabelRead ?? "");
   const [defaultUnit, setDefaultUnit] = useState(initial?.defaultUnit ?? "");
+  const [folderType, setFolderType] = useState<"progress" | "completion">(initial?.folderType ?? "progress");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,7 +33,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   function handleSave() {
     const t = title.trim();
     if (!t) { setError("タイトルを入力してください"); return; }
-    onSave(t, color, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim());
+    onSave(t, color, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim(), folderType);
   }
 
   const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
@@ -76,6 +78,40 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
               ))}
             </div>
           </div>
+
+          {/* フォルダタイプ選択 */}
+          <div>
+            <label className="block text-xs text-[#787c99] mb-2">管理タイプ</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setFolderType("progress")}
+                className="py-3 px-3 rounded-xl border text-sm font-medium transition-colors active:scale-95"
+                style={
+                  folderType === "progress"
+                    ? { backgroundColor: ACCENT_COLORS[color].hex + "33", borderColor: ACCENT_COLORS[color].hex, color: ACCENT_COLORS[color].hex }
+                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                }
+              >
+                <div className="text-lg mb-1">📊</div>
+                <div>進捗管理</div>
+                <div className="text-xs opacity-70 mt-0.5">話数・巻数を記録</div>
+              </button>
+              <button
+                onClick={() => setFolderType("completion")}
+                className="py-3 px-3 rounded-xl border text-sm font-medium transition-colors active:scale-95"
+                style={
+                  folderType === "completion"
+                    ? { backgroundColor: ACCENT_COLORS[color].hex + "33", borderColor: ACCENT_COLORS[color].hex, color: ACCENT_COLORS[color].hex }
+                    : { backgroundColor: "#24283b", borderColor: "#3b4261", color: "#787c99" }
+                }
+              >
+                <div className="text-lg mb-1">✅</div>
+                <div>読了管理</div>
+                <div className="text-xs opacity-70 mt-0.5">未読／読了で管理</div>
+              </button>
+            </div>
+          </div>
+
           <div className="border-t border-[#3b4261] pt-4">
             <p className="text-xs text-[#787c99] mb-3">新規項目のデフォルト設定（省略可）</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
