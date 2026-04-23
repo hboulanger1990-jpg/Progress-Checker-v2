@@ -13,7 +13,8 @@ interface Props {
     color: AccentColor,
     defaultLabelUnread: string,
     defaultLabelRead: string,
-    defaultUnit: string
+    defaultUnit: string,
+    folderType: "progress" | "completion"
   ) => void;
   onEdit: (
     id: string,
@@ -21,7 +22,8 @@ interface Props {
     color: AccentColor,
     defaultLabelUnread: string,
     defaultLabelRead: string,
-    defaultUnit: string
+    defaultUnit: string,
+    folderType: "progress" | "completion"
   ) => void;
   onDelete: (id: string) => void;
   onImport: (data: Folder[]) => void;
@@ -150,7 +152,7 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
         <FolderModal
           mode="add"
           onClose={() => setShowAdd(false)}
-          onSave={(title, color, dlu, dlr, du) => { onAdd(title, color, dlu, dlr, du); setShowAdd(false); }}
+          onSave={(title, color, dlu, dlr, du, ft) => { onAdd(title, color, dlu, dlr, du, ft); setShowAdd(false); }}
         />
       )}
       {editTarget && (
@@ -158,7 +160,7 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
           mode="edit"
           initial={editTarget}
           onClose={() => setEditTarget(null)}
-          onSave={(title, color, dlu, dlr, du) => { onEdit(editTarget.id, title, color, dlu, dlr, du); setEditTarget(null); }}
+          onSave={(title, color, dlu, dlr, du, ft) => { onEdit(editTarget.id, title, color, dlu, dlr, du, ft); setEditTarget(null); }}
         />
       )}
       {showBackup && (
