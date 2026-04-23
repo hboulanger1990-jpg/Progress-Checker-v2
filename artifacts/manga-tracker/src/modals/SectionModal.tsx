@@ -35,29 +35,45 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
     localStorage.setItem(SECTION_MODE_KEY + workId, m);
   }
 
+  function insertItem(index: number) {
+    const next = [...items];
+    next.splice(index, 0, "");
+    setItems(next);
+    setTimeout(() => {
+      const inputs = document.querySelectorAll<HTMLInputElement>(".text-item-input");
+      inputs[index]?.focus();
+    }, 30);
+  }
+
   function handleItemChange(index: number, value: string) {
     const next = [...items];
     next[index] = value;
-    if (index === items.length - 1 && value.trim() !== "") {
-      next.push("");
-    }
     setItems(next);
+    setError("");
+  }
+
+  function handleItemKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      insertItem(index + 1);
+    }
   }
 
   function handleItemPaste(index: number, e: React.ClipboardEvent<HTMLInputElement>) {
     const pasted = e.clipboardData.getData("text");
     const lines = pasted.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "");
-    if (lines.length <= 1) return; // 1行なら通常のペーストに任せる
+    if (lines.length <= 1) return;
     e.preventDefault();
-    const before = items.slice(0, index).filter((_, i) => i < index);
+    const before = items.slice(0, index);
     const after = items.slice(index + 1).filter((l) => l.trim() !== "");
-    const next = [...before, ...lines, ...after, ""];
+    const next = [...before, ...lines, ...after];
+    if (next[next.length - 1] !== "") next.push("");
     setItems(next);
     setError("");
   }
 
   function removeItem(index: number) {
-    if (items.length === 1) return;
+    if (items.filter((i) => i.trim() !== "").length <= 1 && items.length === 1) return;
     setItems(items.filter((_, i) => i !== index));
   }
 
@@ -162,24 +178,41 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
           ) : (
             <div>
               <label className="block text-xs text-[#787c99] mb-2">
-                項目（1行1項目・複数行のコピペ一括入力可）
+                項目（Enterで下に追加・複数行コピペ可）
               </label>
-              <div className="space-y-2">
+
+              {/* 一番上に追加ボタン */}
+              <button
+                onClick={() => insertItem(0)}
+                className="w-full mb-1.5 py-1 rounded-lg border border-dashed border-[#3b4261] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
+              >
+                ＋ 先頭に追加
+              </button>
+
+              <div className="space-y-1.5">
                 {items.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center">
-                    <input
-                      value={item}
-                      onChange={(e) => { handleItemChange(index, e.target.value); setError(""); }}
-                      onPaste={(e) => handleItemPaste(index, e)}
-                      placeholder={`項目 ${index + 1}`}
-                      className={`${inputClass} placeholder-[#4a5177]`}
-                    />
-                    {items.length > 1 && (
+                  <div key={index}>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        value={item}
+                        onChange={(e) => handleItemChange(index, e.target.value)}
+                        onKeyDown={(e) => handleItemKeyDown(index, e)}
+                        onPaste={(e) => handleItemPaste(index, e)}
+                        placeholder={`項目 ${index + 1}`}
+                        className={`text-item-input ${inputClass} placeholder-[#4a5177]`}
+                      />
                       <button
                         onClick={() => removeItem(index)}
                         className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1b26] text-[#f7768e] border border-[#3b4261] active:scale-95"
                       >×</button>
-                    )}
+                    </div>
+                    {/* 各項目の下に追加ボタン */}
+                    <button
+                      onClick={() => insertItem(index + 1)}
+                      className="w-full mt-1 py-0.5 rounded border border-dashed border-[#2a2d3e] text-[#4a5177] text-xs active:scale-95 transition-transform hover:border-[#7aa2f7] hover:text-[#7aa2f7]"
+                    >
+                      ＋
+                    </button>
                   </div>
                 ))}
               </div>
