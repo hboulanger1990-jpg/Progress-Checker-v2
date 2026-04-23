@@ -24,15 +24,17 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-  if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
-    setUser((prev) => {
-      const next = session?.user ?? null;
-      if (prev?.id === next?.id) return prev;
-      return next;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        setUser((prev) => {
+          const next = session?.user ?? null;
+          if (prev?.id === next?.id) return prev;
+          return next;
+        });
+      }
     });
-  }
-});
+    return () => subscription.unsubscribe();
+  }, []);
 
   // ---- Load data ----
   useEffect(() => {
@@ -136,86 +138,4 @@ export default function App() {
     const section: Section = { ...s, id: crypto.randomUUID(), statuses: {} };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
-  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items">>) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
-  }
-  function deleteSection(folderId: string, workId: string, sectionId: string) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.filter((s) => s.id !== sectionId) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
-  }
-
-  // ---- Item toggle ----
-  function toggleItem(folderId: string, workId: string, sectionId: string, num: number) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => { if (s.id !== sectionId) return s; const next = { ...s.statuses }; if (next[num]) delete next[num]; else next[num] = "read"; return { ...s, statuses: next }; }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
-  }
-
-  // ---- Bulk range ----
-  function bulkRange(folderId: string, workId: string, start: number, end: number, toRead: boolean) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => { const next = { ...s.statuses }; for (let n = Math.max(start, s.startNum); n <= Math.min(end, s.endNum); n++) { if (toRead) next[n] = "read"; else delete next[n]; } return { ...s, statuses: next }; }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
-  }
-
-  // ---- Import ----
-  function importHandler(data: Folder[]) {
-    const sorted = [...data].sort((a, b) => b.updatedAt - a.updatedAt);
-    setFolders(sorted);
-    saveFolders(sorted);
-    navigate({ screen: "folders" });
-  }
-
-  const currentFolder = view.screen !== "folders" ? folders.find((f) => f.id === (view as { folderId: string }).folderId) : undefined;
-  const currentWork = view.screen === "detail" && currentFolder ? currentFolder.works.find((w) => w.id === (view as { workId: string }).workId) : undefined;
-
-  if (loading) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "#ccc" }}>読み込み中...</div>;
-
-  return (
-    <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.11s ease" }}>
-      {/* ログインボタン */}
-      <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
-        {user ? (
-          <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-            ログアウト
-          </button>
-        ) : (
-          <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-            Googleでログイン
-          </button>
-        )}
-      </div>
-
-      {view.screen === "folders" && (
-        <FolderListScreen
-          folders={folders}
-          onSelect={(f) => navigate({ screen: "works", folderId: f.id })}
-          onAdd={addFolder}
-          onEdit={editFolder}
-          onDelete={deleteFolder}
-          onImport={importHandler}
-        />
-      )}
-      {view.screen === "works" && currentFolder && (
-        <WorkListScreen
-          folder={currentFolder}
-          onBack={goBack}
-          onSelect={(w) => navigate({ screen: "detail", folderId: currentFolder.id, workId: w.id })}
-          onAdd={(data) => addWork(currentFolder.id, data)}
-          onEdit={(wId, updates) => editWork(currentFolder.id, wId, updates)}
-          onDelete={(wId) => deleteWork(currentFolder.id, wId)}
-          onToggleCompletion={(wId) => editWork(currentFolder.id, wId, { completed: !currentFolder.works.find(w => w.id === wId)?.completed })}
-        />
-      )}
-      {view.screen === "detail" && currentFolder && currentWork && (
-        <WorkDetailScreen
-          folder={currentFolder}
-          work={currentWork}
-          onBack={goBack}
-          onEditWork={(updates) => editWork(currentFolder.id, currentWork.id, updates)}
-          onDeleteWork={() => { deleteWork(currentFolder.id, currentWork.id); navigate({ screen: "works", folderId: currentFolder.id }); }}
-          onAddSection={(s) => addSection(currentFolder.id, currentWork.id, s)}
-          onEditSection={(sId, u) => editSection(currentFolder.id, currentWork.id, sId, u)}
-          onDeleteSection={(sId) => deleteSection(currentFolder.id, currentWork.id, sId)}
-          onToggleItem={(sId, n) => toggleItem(currentFolder.id, currentWork.id, sId, n)}
-          onBulkRange={(s, e, r) => bulkRange(currentFolder.id, currentWork.id, s, e, r)}
-        />
-      )}
-    </div>
-  );
-}
+  function editSection(fo
