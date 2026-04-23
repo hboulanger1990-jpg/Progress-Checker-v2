@@ -104,12 +104,12 @@ export default function App() {
   }
 
   // ---- Folder CRUD ----
-  function addFolder(title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
-    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, works: [], updatedAt: Date.now() };
+  function addFolder(title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, folderType: "progress" | "completion") {
+    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, folderType, works: [], updatedAt: Date.now() };
     mutate((prev) => [f, ...prev]);
   }
-  function editFolder(id: string, title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, updatedAt: Date.now() } : f));
+  function editFolder(id: string, title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, folderType: "progress" | "completion") {
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, folderType, updatedAt: Date.now() } : f));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));
