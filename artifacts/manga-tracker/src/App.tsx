@@ -24,11 +24,15 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+    setUser((prev) => {
+      const next = session?.user ?? null;
+      if (prev?.id === next?.id) return prev;
+      return next;
     });
-    return () => subscription.unsubscribe();
-  }, []);
+  }
+});
 
   // ---- Load data ----
   useEffect(() => {
@@ -49,7 +53,7 @@ export default function App() {
       setLoading(false);
     }
     load();
-  }, [user]);
+  }, [user?.id]);
 
   // ---- Save data ----
   useEffect(() => {
