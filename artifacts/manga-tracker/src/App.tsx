@@ -132,7 +132,7 @@ export default function App() {
     const section: Section = { ...s, id: crypto.randomUUID(), statuses: {} };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
-  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum">>) {
+  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
   function deleteSection(folderId: string, workId: string, sectionId: string) {
