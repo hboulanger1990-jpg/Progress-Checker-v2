@@ -37,6 +37,7 @@ export interface Folder {
   defaultLabelUnread?: string;
   defaultLabelRead?: string;
   defaultUnit?: string;
+  folderType?: "progress" | "completion";
   works: Work[];
   updatedAt: number;
 }
