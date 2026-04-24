@@ -14,8 +14,6 @@ export interface Section {
   label: string;
   startNum: number;
   endNum: number;
-　mode?: "number" | "text";
-  items?: string[];
   statuses: Record<number, "read">;
 }
 
@@ -27,9 +25,8 @@ export interface Work {
   labelRead: string;
   unit: string;
   sectionLabel?: string;
-  tags?: string[];
-  completed?: boolean;
   sections: Section[];
+  completed?: boolean;
   updatedAt: number;
 }
 
@@ -37,10 +34,10 @@ export interface Folder {
   id: string;
   title: string;
   accentColor: AccentColor;
+  type?: "progress" | "read";
   defaultLabelUnread?: string;
   defaultLabelRead?: string;
   defaultUnit?: string;
-  folderType?: "progress" | "completion";
   works: Work[];
   updatedAt: number;
 }
