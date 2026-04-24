@@ -25,6 +25,8 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Work | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStart = useRef({ x: 0, y: 0 });
 
   const isReadMode = folder.type === "read";
@@ -42,22 +44,34 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
   function handleDelete(w: Work) {
     if (!window.confirm(`「${w.title}」を削除しますか？この操作は元に戻せません。`)) return;
     onDelete(w.id);
+    setSelectedId(null);
   }
 
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  function handlePressStart(id: string, touchX: number, touchY: number) {
+    touchStart.current = { x: touchX, y: touchY };
+    longPressTimer.current = setTimeout(() => {
+      setSelectedId(id);
+    }, 500);
   }
-  function handleTouchEnd(e: React.TouchEvent) {
-    const dx = e.changedTouches[0].clientX - touchStart.current.x;
-    const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
-    if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
+
+  function handlePressEnd() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  }
+
+  function handleTouchStart(e: React.TouchEvent, id: string) {
+    handlePressStart(id, e.touches[0].clientX, e.touches[0].clientY);
   }
 
   return (
     <div
       className="min-h-screen bg-[#1a1b26] flex flex-col"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      onTouchStart={(e) => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+      onTouchEnd={(e) => {
+        const dx = e.changedTouches[0].clientX - touchStart.current.x;
+        const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
+        if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
+      }}
+      onClick={() => setSelectedId(null)}
     >
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 pt-2 pb-3">
         <div className="max-w-lg mx-auto">
@@ -107,17 +121,28 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
             {filtered.map((work) => {
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const done = !!work.completed;
+              const isSelected = selectedId === work.id;
               return (
                 <div key={work.id} className="relative">
                   <button
-                    onClick={() => onToggleCompleted(work.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSelected) { setSelectedId(null); return; }
+                      onToggleCompleted(work.id);
+                    }}
+                    onMouseDown={() => handlePressStart(work.id, 0, 0)}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                    onTouchStart={(e) => handleTouchStart(e, work.id)}
+                    onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
+                    onContextMenu={(e) => { e.preventDefault(); setSelectedId(work.id); }}
                     className="w-full rounded-2xl px-4 py-4 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{
                       backgroundColor: done ? hex : "#24283b",
-                      borderColor: done ? hex : "#3b4261",
+                      borderColor: isSelected ? "#7aa2f7" : done ? hex : "#3b4261",
                     }}
                   >
-                    <div className="flex items-center gap-3 pr-16">
+                    <div className="flex items-center gap-3">
                       <span
                         className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 text-sm transition-all"
                         style={{
@@ -125,45 +150,31 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                           backgroundColor: done ? "#1a1b26" : "transparent",
                           color: done ? hex : "transparent",
                         }}
-                      >
-                        ✓
-                      </span>
+                      >✓</span>
                       <span
                         className="font-bold text-base leading-tight line-clamp-2"
                         style={{ color: done ? "#1a1b26" : "#c0caf5" }}
-                      >
-                        {work.title}
-                      </span>
+                      >{work.title}</span>
                     </div>
                     <div className="mt-1.5 pl-9">
-                      <span
-                        className="text-xs font-medium"
-                        style={{ color: done ? "#1a1b2699" : "#787c99" }}
-                      >
+                      <span className="text-xs font-medium" style={{ color: done ? "#1a1b2699" : "#787c99" }}>
                         {done ? "完了" : "未完了"}
                       </span>
                     </div>
                   </button>
-                  <div className="absolute top-3 right-3 flex gap-1">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditTarget(work); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-sm active:scale-95 transition-transform border"
-                      style={{
-                        backgroundColor: done ? `${hex}33` : "#1a1b26",
-                        borderColor: done ? `${hex}55` : "#3b4261",
-                        color: done ? "#1a1b26" : "#787c99",
-                      }}
-                    >⚙️</button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(work); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-sm active:scale-95 transition-transform border"
-                      style={{
-                        backgroundColor: done ? `${hex}33` : "#1a1b26",
-                        borderColor: done ? `${hex}55` : "#3b4261",
-                        color: "#f7768e",
-                      }}
-                    >🗑</button>
-                  </div>
+
+                  {isSelected && (
+                    <div className="absolute top-0 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setEditTarget(work); setSelectedId(null); }}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"
+                      >✏️ 編集</button>
+                      <button
+                        onClick={() => handleDelete(work)}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"
+                      >🗑 削除</button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -175,41 +186,52 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
               const { read, total, percent } = calcWorkProgress(work.sections);
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const secLabel = work.sectionLabel || "セクション";
+              const isSelected = selectedId === work.id;
               return (
                 <div key={work.id} className="relative">
                   <button
-                    onClick={() => onSelect(work)}
-                    className="w-full bg-[#24283b] border border-[#3b4261] rounded-2xl px-4 py-4 text-left active:scale-[0.98] transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSelected) { setSelectedId(null); return; }
+                      onSelect(work);
+                    }}
+                    onMouseDown={() => handlePressStart(work.id, 0, 0)}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                    onTouchStart={(e) => handleTouchStart(e, work.id)}
+                    onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
+                    onContextMenu={(e) => { e.preventDefault(); setSelectedId(work.id); }}
+                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all ${
+                      isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2 pr-16">
-                      <span className="font-bold text-[#c0caf5] text-base leading-tight line-clamp-2">{work.title}</span>
-                      <span className="text-xs font-bold shrink-0 mt-0.5" style={{ color: hex }}>{percent}%</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-[#c0caf5] text-base leading-tight truncate">{work.title}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-[#787c99]">{read}/{total}{work.unit}</span>
+                        <span className="text-xs font-bold" style={{ color: hex }}>{percent}%</span>
+                      </div>
                     </div>
-                    <div className="h-1.5 bg-[#1a1b26] rounded-full overflow-hidden mb-2">
+                    <div className="h-1 bg-[#1a1b26] rounded-full overflow-hidden mt-2">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{ width: `${percent}%`, backgroundColor: hex }}
                       />
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-[#787c99]">
-                      <span>
-                        <span className="inline-block w-2 h-2 rounded-sm mr-1" style={{ backgroundColor: hex }} />
-                        {work.labelRead} {read}
-                      </span>
-                      <span className="text-[#4a5177]">/ {total}{work.unit}</span>
-                      <span className="text-[#4a5177]">· {work.sections.length}{secLabel}</span>
-                    </div>
                   </button>
-                  <div className="absolute top-3 right-3 flex gap-1">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditTarget(work); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1b26] text-[#787c99] text-sm active:scale-95 transition-transform border border-[#3b4261]"
-                    >⚙️</button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(work); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1b26] text-[#f7768e] text-sm active:scale-95 transition-transform border border-[#3b4261]"
-                    >🗑</button>
-                  </div>
+
+                  {isSelected && (
+                    <div className="absolute top-0 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setEditTarget(work); setSelectedId(null); }}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"
+                      >✏️ 編集</button>
+                      <button
+                        onClick={() => handleDelete(work)}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"
+                      >🗑 削除</button>
+                    </div>
+                  )}
                 </div>
               );
             })}
