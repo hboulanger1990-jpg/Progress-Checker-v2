@@ -104,12 +104,12 @@ export default function App() {
   }
 
   // ---- Folder CRUD ----
-  function addFolder(title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
-    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, works: [], updatedAt: Date.now() };
+  function addFolder(title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
+    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, works: [], updatedAt: Date.now() };
     mutate((prev) => [f, ...prev]);
   }
-  function editFolder(id: string, title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, updatedAt: Date.now() } : f));
+  function editFolder(id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, updatedAt: Date.now() } : f));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));
@@ -125,6 +125,15 @@ export default function App() {
   }
   function deleteWork(folderId: string, workId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }));
+  }
+
+  // ---- Work completed toggle (読了管理用) ----
+  function toggleWorkCompleted(folderId: string, workId: string) {
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
+      ...f,
+      updatedAt: Date.now(),
+      works: f.works.map((w) => w.id !== workId ? w : { ...w, completed: !w.completed, updatedAt: Date.now() }),
+    }));
   }
 
   // ---- Section CRUD ----
@@ -165,19 +174,17 @@ export default function App() {
   return (
     <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.11s ease" }}>
       {/* ログインボタン */}
-      {view.screen === "folders" && (
-        <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
-          {user ? (
-            <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-              ログアウト
-            </button>
-          ) : (
-            <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-              Googleでログイン
-            </button>
-          )}
-        </div>
-      )}
+      <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
+        {user ? (
+          <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
+            ログアウト
+          </button>
+        ) : (
+          <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
+            Googleでログイン
+          </button>
+        )}
+      </div>
 
       {view.screen === "folders" && (
         <FolderListScreen
@@ -194,6 +201,7 @@ export default function App() {
           folder={currentFolder}
           onBack={goBack}
           onSelect={(w) => navigate({ screen: "detail", folderId: currentFolder.id, workId: w.id })}
+          onToggleCompleted={(wId) => toggleWorkCompleted(currentFolder.id, wId)}
           onAdd={(data) => addWork(currentFolder.id, data)}
           onEdit={(wId, updates) => editWork(currentFolder.id, wId, updates)}
           onDelete={(wId) => deleteWork(currentFolder.id, wId)}
