@@ -24,14 +24,8 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
-        setUser((prev) => {
-          const next = session?.user ?? null;
-          if (prev?.id === next?.id) return prev;
-          return next;
-        });
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -55,7 +49,7 @@ export default function App() {
       setLoading(false);
     }
     load();
-  }, [user?.id]);
+  }, [user]);
 
   // ---- Save data ----
   useEffect(() => {
@@ -110,23 +104,23 @@ export default function App() {
   }
 
   // ---- Folder CRUD ----
-  function addFolder(title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, folderType: "progress" | "completion") {
-    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, folderType, works: [], updatedAt: Date.now() };
+  function addFolder(title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
+    const f: Folder = { id: crypto.randomUUID(), title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, works: [], updatedAt: Date.now() };
     mutate((prev) => [f, ...prev]);
   }
-  function editFolder(id: string, title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string, folderType: "progress" | "completion") {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, folderType, updatedAt: Date.now() } : f));
+  function editFolder(id: string, title: string, color: AccentColor, defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, defaultLabelUnread, defaultLabelRead, defaultUnit, updatedAt: Date.now() } : f));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));
   }
 
   // ---- Work CRUD ----
-  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; tags: string[]; }) {
+  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; }) {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }));
   }
-  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags" | "completed">>) {
+  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
   function deleteWork(folderId: string, workId: string) {
@@ -138,7 +132,7 @@ export default function App() {
     const section: Section = { ...s, id: crypto.randomUUID(), statuses: {} };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
-  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items">>) {
+  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
   function deleteSection(folderId: string, workId: string, sectionId: string) {
@@ -170,17 +164,20 @@ export default function App() {
 
   return (
     <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.11s ease" }}>
-      <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
-        {user ? (
-          <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-            ログアウト
-          </button>
-        ) : (
-          <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-            Googleでログイン
-          </button>
-        )}
-      </div>
+      {/* ログインボタン */}
+      {view.screen === "folders" && (
+        <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
+          {user ? (
+            <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
+              ログアウト
+            </button>
+          ) : (
+            <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
+              Googleでログイン
+            </button>
+          )}
+        </div>
+      )}
 
       {view.screen === "folders" && (
         <FolderListScreen
@@ -200,7 +197,6 @@ export default function App() {
           onAdd={(data) => addWork(currentFolder.id, data)}
           onEdit={(wId, updates) => editWork(currentFolder.id, wId, updates)}
           onDelete={(wId) => deleteWork(currentFolder.id, wId)}
-          onToggleCompletion={(wId) => editWork(currentFolder.id, wId, { completed: !currentFolder.works.find(w => w.id === wId)?.completed })}
         />
       )}
       {view.screen === "detail" && currentFolder && currentWork && (
