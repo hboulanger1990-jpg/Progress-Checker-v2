@@ -127,7 +127,7 @@ export default function App() {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }));
   }
 
-  // ---- Work completed toggle (読了管理用) ----
+  // ---- Work completed toggle (完了管理用) ----
   function toggleWorkCompleted(folderId: string, workId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
       ...f,
@@ -173,18 +173,20 @@ export default function App() {
 
   return (
     <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.11s ease" }}>
-      {/* ログインボタン */}
-      <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
-        {user ? (
-          <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-            ログアウト
-          </button>
-        ) : (
-          <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-            Googleでログイン
-          </button>
-        )}
-      </div>
+      {/* ログインボタン：フォルダ一覧のみ表示 */}
+      {view.screen === "folders" && (
+        <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
+          {user ? (
+            <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
+              ログアウト
+            </button>
+          ) : (
+            <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
+              Googleでログイン
+            </button>
+          )}
+        </div>
+      )}
 
       {view.screen === "folders" && (
         <FolderListScreen
