@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { AccentColor, Folder } from "../types";
 import { ACCENT_COLORS } from "../types";
 import { calcSectionProgress } from "../storage";
@@ -34,12 +34,15 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
   const [showBackup, setShowBackup] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filtered = folders.filter((f) => f.title.toLowerCase().includes(search.toLowerCase()));
 
   function handleDelete(f: Folder) {
     if (!window.confirm(`「${f.title}」を削除しますか？\n内の全項目も削除されます。`)) return;
     onDelete(f.id);
+    setSelectedId(null);
   }
 
   function getFolderStats(folder: Folder) {
@@ -55,8 +58,18 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
     return { total, read, percent };
   }
 
+  function handlePressStart(id: string) {
+    longPressTimer.current = setTimeout(() => {
+      setSelectedId(id);
+    }, 500);
+  }
+
+  function handlePressEnd() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  }
+
   return (
-    <div className="min-h-screen bg-[#1a1b26] flex flex-col">
+    <div className="min-h-screen bg-[#1a1b26] flex flex-col" onClick={() => setSelectedId(null)}>
       <header className="sticky top-0 z-10 bg-[#1a1b26]/95 backdrop-blur-md border-b border-[#2a2d3e] px-4 pt-2 pb-3">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
@@ -98,14 +111,27 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
             {filtered.map((folder) => {
               const { read, total, percent } = getFolderStats(folder);
               const hex = ACCENT_COLORS[folder.accentColor].hex;
+              const isSelected = selectedId === folder.id;
               return (
-                <div key={folder.id} className="relative group">
+                <div key={folder.id} className="relative">
                   <button
-                    onClick={() => onSelect(folder)}
-                    className="w-full bg-[#24283b] border border-[#3b4261] rounded-2xl px-4 py-4 text-left active:scale-[0.98] transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSelected) { setSelectedId(null); return; }
+                      onSelect(folder);
+                    }}
+                    onMouseDown={() => handlePressStart(folder.id)}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                    onTouchStart={() => handlePressStart(folder.id)}
+                    onTouchEnd={handlePressEnd}
+                    onContextMenu={(e) => { e.preventDefault(); setSelectedId(folder.id); }}
+                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-4 text-left active:scale-[0.98] transition-all ${
+                      isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"
+                    }`}
                     style={{ borderLeftColor: hex, borderLeftWidth: "4px" }}
                   >
-                    <div className="flex items-center justify-between mb-1 pr-16">
+                    <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-[#c0caf5] text-base leading-tight">{folder.title}</span>
                       <span className="text-xs font-bold shrink-0 ml-2" style={{ color: hex }}>{percent}%</span>
                     </div>
@@ -119,16 +145,19 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
                       />
                     </div>
                   </button>
-                  <div className="absolute top-3 right-3 flex gap-1">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditTarget(folder); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1b26] text-[#787c99] text-sm active:scale-95 transition-transform border border-[#3b4261]"
-                    >⚙️</button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(folder); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1a1b26] text-[#f7768e] text-sm active:scale-95 transition-transform border border-[#3b4261]"
-                    >🗑</button>
-                  </div>
+
+                  {isSelected && (
+                    <div className="absolute top-0 right-0 z-20 flex gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setEditTarget(folder); setSelectedId(null); }}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#7aa2f7] text-[#7aa2f7] active:scale-95 transition-transform shadow-lg"
+                      >✏️ 編集</button>
+                      <button
+                        onClick={() => handleDelete(folder)}
+                        className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-[#24283b] border border-[#f7768e] text-[#f7768e] active:scale-95 transition-transform shadow-lg"
+                      >🗑 削除</button>
+                    </div>
+                  )}
                 </div>
               );
             })}
