@@ -9,6 +9,7 @@ interface Props {
   onSave: (
     title: string,
     color: AccentColor,
+    type: "progress" | "read",
     defaultLabelUnread: string,
     defaultLabelRead: string,
     defaultUnit: string
@@ -20,6 +21,7 @@ const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "blue");
+  const [folderType, setFolderType] = useState<"progress" | "read">(initial?.type ?? "progress");
   const [defaultLabelUnread, setDefaultLabelUnread] = useState(initial?.defaultLabelUnread ?? "");
   const [defaultLabelRead, setDefaultLabelRead] = useState(initial?.defaultLabelRead ?? "");
   const [defaultUnit, setDefaultUnit] = useState(initial?.defaultUnit ?? "");
@@ -31,7 +33,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   function handleSave() {
     const t = title.trim();
     if (!t) { setError("タイトルを入力してください"); return; }
-    onSave(t, color, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim());
+    onSave(t, color, folderType, defaultLabelUnread.trim(), defaultLabelRead.trim(), defaultUnit.trim());
   }
 
   const inputClass = "w-full bg-[#24283b] text-[#c0caf5] border border-[#3b4261] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#7aa2f7] transition-colors";
@@ -57,6 +59,34 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
               className={inputClass}
             />
           </div>
+
+          <div>
+            <label className="block text-xs text-[#787c99] mb-2">管理タイプ</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["progress", "read"] as const).map((t) => {
+                const isSelected = folderType === t;
+                const label = t === "progress" ? "進捗管理" : "完了管理";
+                const desc = t === "progress" ? "話数・章などを細かく記録" : "完了／未完了をワンタップで管理";
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setFolderType(t)}
+                    className="rounded-xl border p-3 text-left transition-all active:scale-95"
+                    style={{
+                      borderColor: isSelected ? ACCENT_COLORS[color].hex : "#3b4261",
+                      backgroundColor: isSelected ? `${ACCENT_COLORS[color].hex}22` : "#24283b",
+                    }}
+                  >
+                    <div className="text-sm font-bold mb-1" style={{ color: isSelected ? ACCENT_COLORS[color].hex : "#c0caf5" }}>
+                      {label}
+                    </div>
+                    <div className="text-xs text-[#787c99] leading-tight">{desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
             <div className="flex gap-2 flex-wrap">
@@ -76,23 +106,27 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
               ))}
             </div>
           </div>
-          <div className="border-t border-[#3b4261] pt-4">
-            <p className="text-xs text-[#787c99] mb-3">新規項目のデフォルト設定（省略可）</p>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
-                <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} className={inputClass} />
+
+          {folderType === "progress" && (
+            <div className="border-t border-[#3b4261] pt-4">
+              <p className="text-xs text-[#787c99] mb-3">新規項目のデフォルト設定（省略可）</p>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
+                  <input value={defaultLabelUnread} onChange={(e) => setDefaultLabelUnread(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
+                  <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} className={inputClass} />
+                </div>
               </div>
               <div>
-                <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
-                <input value={defaultLabelRead} onChange={(e) => setDefaultLabelRead(e.target.value)} className={inputClass} />
+                <label className="block text-xs text-[#787c99] mb-1">単位</label>
+                <input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} className={inputClass} />
               </div>
             </div>
-            <div>
-              <label className="block text-xs text-[#787c99] mb-1">単位</label>
-              <input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} className={inputClass} />
-            </div>
-          </div>
+          )}
+
           {error && <p className="text-xs text-[#f7768e]">{error}</p>}
         </div>
         <div className="mt-6 flex gap-3">
