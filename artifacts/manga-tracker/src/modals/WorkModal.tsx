@@ -6,6 +6,7 @@ interface Props {
   mode: "add" | "edit";
   initial?: Work;
   folderDefaults?: { labelUnread: string; labelRead: string; unit: string };
+  folderAccentColor?: AccentColor;
   onClose: () => void;
   onSave: (data: {
     title: string;
@@ -20,9 +21,10 @@ interface Props {
 
 const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 
-export default function WorkModal({ mode, initial, folderDefaults, onClose, onSave }: Props) {
+export default function WorkModal({ mode, initial, folderDefaults, folderAccentColor, onClose, onSave }: Props) {
+  // ⑤ 新規追加時はフォルダのアクセントカラーを初期値に
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "blue");
+  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? folderAccentColor ?? "blue");
   const [labelUnread, setLabelUnread] = useState(initial?.labelUnread ?? folderDefaults?.labelUnread ?? "未完了");
   const [labelRead, setLabelRead] = useState(initial?.labelRead ?? folderDefaults?.labelRead ?? "完了");
   const [unit, setUnit] = useState(initial?.unit ?? folderDefaults?.unit ?? "");
@@ -33,6 +35,13 @@ export default function WorkModal({ mode, initial, folderDefaults, onClose, onSa
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
+
+  // ⑥ タブ切替でモーダルが閉じない
+  useEffect(() => {
+    const handler = (e: Event) => { e.stopImmediatePropagation(); };
+    document.addEventListener("visibilitychange", handler, true);
+    return () => document.removeEventListener("visibilitychange", handler, true);
+  }, []);
 
   function addTag() {
     const t = tagInput.trim();
