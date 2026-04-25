@@ -1,12 +1,15 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { AccentColor, Folder } from "../types";
 import { ACCENT_COLORS } from "../types";
-import { calcSectionProgress } from "../storage";
 import FolderModal from "../modals/FolderModal";
 import BackupModal from "../modals/BackupModal";
+import type { User } from "@supabase/supabase-js";
 
 interface Props {
   folders: Folder[];
+  user: User | null;
+  onSignIn: () => void;
+  onSignOut: () => void;
   onSelect: (f: Folder) => void;
   onAdd: (
     title: string,
@@ -29,7 +32,7 @@ interface Props {
   onImport: (data: Folder[]) => void;
 }
 
-export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onDelete, onImport }: Props) {
+export default function FolderListScreen({ folders, user, onSignIn, onSignOut, onSelect, onAdd, onEdit, onDelete, onImport }: Props) {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Folder | null>(null);
@@ -37,25 +40,23 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered = folders.filter((f) => f.title.toLowerCase().includes(search.toLowerCase()));
+  // ⑥ タブ切替でモーダルが閉じないようにvisibilitychangeで制御
+  useEffect(() => {
+    function handleVisibility() {
+      // visibilitychangeでは何もしない（モーダル状態を保持する）
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  // ② updatedAt降順でソート
+  const sorted = [...folders].sort((a, b) => b.updatedAt - a.updatedAt);
+  const filtered = sorted.filter((f) => f.title.toLowerCase().includes(search.toLowerCase()));
 
   function handleDelete(f: Folder) {
     if (!window.confirm(`「${f.title}」を削除しますか？\n内の全項目も削除されます。`)) return;
     onDelete(f.id);
     setSelectedId(null);
-  }
-
-  function getFolderStats(folder: Folder) {
-    let total = 0, read = 0;
-    for (const w of folder.works) {
-      for (const s of w.sections) {
-        const p = calcSectionProgress(s);
-        total += p.total;
-        read += p.read;
-      }
-    }
-    const percent = total > 0 ? Math.round((read / total) * 100) : 0;
-    return { total, read, percent };
   }
 
   function handlePressStart(id: string) {
@@ -74,13 +75,34 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold text-[#c0caf5]">Progress Checker</h1>
-            <button
-              onClick={() => setShowBackup(true)}
-              className="flex items-center gap-1.5 text-xs text-[#787c99] bg-[#24283b] px-3 py-1.5 rounded-lg border border-[#3b4261] active:scale-95 transition-transform"
-            >
-              <span>💾</span>
-              <span>バックアップ</span>
-            </button>
+            {/* ① アイコンボタン群（バックアップ・ログイン/ログアウト） */}
+            <div className="flex items-center gap-2">
+              {/* バックアップ：アイコンのみ */}
+              <button
+                onClick={() => setShowBackup(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform text-base"
+                title="バックアップ"
+              >
+                💾
+              </button>
+              {/* ログイン/ログアウト */}
+              {user ? (
+                <button
+                  onClick={onSignOut}
+                  className="flex items-center gap-1.5 text-xs text-[#787c99] bg-[#24283b] px-3 py-1.5 rounded-xl border border-[#3b4261] active:scale-95 transition-transform h-9"
+                >
+                  ログアウト
+                </button>
+              ) : (
+                <button
+                  onClick={onSignIn}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform text-base"
+                  title="Googleでログイン"
+                >
+                  👤
+                </button>
+              )}
+            </div>
           </div>
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99] text-sm">🔍</span>
@@ -109,11 +131,11 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
         ) : (
           <div className="space-y-2">
             {filtered.map((folder) => {
-              const { read, total, percent } = getFolderStats(folder);
               const hex = ACCENT_COLORS[folder.accentColor].hex;
               const isSelected = selectedId === folder.id;
               return (
                 <div key={folder.id} className="relative">
+                  {/* ⑧ フォルダカード：タイトルのみ、進捗バーなし */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -126,24 +148,12 @@ export default function FolderListScreen({ folders, onSelect, onAdd, onEdit, onD
                     onTouchStart={() => handlePressStart(folder.id)}
                     onTouchEnd={handlePressEnd}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedId(folder.id); }}
-                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-4 text-left active:scale-[0.98] transition-all ${
+                    className={`w-full bg-[#24283b] border rounded-2xl px-4 py-3.5 text-left active:scale-[0.98] transition-all ${
                       isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"
                     }`}
                     style={{ borderLeftColor: hex, borderLeftWidth: "4px" }}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-[#c0caf5] text-base leading-tight">{folder.title}</span>
-                      <span className="text-xs font-bold shrink-0 ml-2" style={{ color: hex }}>{percent}%</span>
-                    </div>
-                    <div className="text-xs text-[#787c99] mb-2">
-                      {folder.works.length}項目 · {read}/{total}
-                    </div>
-                    <div className="h-1.5 bg-[#1a1b26] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${percent}%`, backgroundColor: hex }}
-                      />
-                    </div>
+                    <span className="font-bold text-[#c0caf5] text-base leading-tight">{folder.title}</span>
                   </button>
 
                   {isSelected && (
