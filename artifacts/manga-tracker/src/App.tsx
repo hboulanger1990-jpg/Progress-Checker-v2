@@ -109,18 +109,18 @@ export default function App() {
     mutate((prev) => [f, ...prev]);
   }
   function editFolder(id: string, title: string, color: AccentColor, type: "progress" | "read", defaultLabelUnread: string, defaultLabelRead: string, defaultUnit: string) {
-    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, updatedAt: Date.now() } : f));
+    mutate((prev) => prev.map((f) => f.id === id ? { ...f, title, accentColor: color, type, defaultLabelUnread, defaultLabelRead, defaultUnit, updatedAt: Date.now() } : f).sort((a, b) => b.updatedAt - a.updatedAt));
   }
   function deleteFolder(id: string) {
     mutate((prev) => prev.filter((f) => f.id !== id));
   }
 
   // ---- Work CRUD ----
-  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; }) {
+  function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; tags: string[] }) {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }));
   }
-  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) {
+  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
   function deleteWork(folderId: string, workId: string) {
@@ -173,24 +173,12 @@ export default function App() {
 
   return (
     <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.11s ease" }}>
-      {/* ログインボタン：フォルダ一覧のみ表示 */}
-      {view.screen === "folders" && (
-        <div style={{ position: "fixed", top: 12, right: 12, zIndex: 1000 }}>
-          {user ? (
-            <button onClick={signOut} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-              ログアウト
-            </button>
-          ) : (
-            <button onClick={signInWithGoogle} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: "#333", color: "#ccc", border: "1px solid #555", cursor: "pointer" }}>
-              Googleでログイン
-            </button>
-          )}
-        </div>
-      )}
-
       {view.screen === "folders" && (
         <FolderListScreen
           folders={folders}
+          user={user}
+          onSignIn={signInWithGoogle}
+          onSignOut={signOut}
           onSelect={(f) => navigate({ screen: "works", folderId: f.id })}
           onAdd={addFolder}
           onEdit={editFolder}
