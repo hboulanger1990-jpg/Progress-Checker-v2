@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Folder, Work } from "../types";
 import { ACCENT_COLORS } from "../types";
 import { calcWorkProgress } from "../storage";
@@ -16,8 +16,9 @@ interface Props {
     labelRead: string;
     unit: string;
     sectionLabel: string;
+    tags: string[];
   }) => void;
-  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel">>) => void;
+  onEdit: (workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) => void;
   onDelete: (workId: string) => void;
 }
 
@@ -36,6 +37,13 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
     labelRead: folder.defaultLabelRead || "完了",
     unit: folder.defaultUnit || "",
   };
+
+  // ⑥ タブ切替でモーダルが閉じない
+  useEffect(() => {
+    const handler = (e: Event) => { e.stopImmediatePropagation(); };
+    document.addEventListener("visibilitychange", handler, true);
+    return () => document.removeEventListener("visibilitychange", handler, true);
+  }, []);
 
   const filtered = folder.works.filter((w) =>
     w.title.toLowerCase().includes(search.toLowerCase())
@@ -122,8 +130,11 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const done = !!work.completed;
               const isSelected = selectedId === work.id;
+              const unreadLabel = work.labelUnread || folder.defaultLabelUnread || "未完了";
+              const readLabel = work.labelRead || folder.defaultLabelRead || "完了";
               return (
                 <div key={work.id} className="relative">
+                  {/* ⑧ 完了管理カード：進捗管理と同じ細さに */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -136,7 +147,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                     onTouchStart={(e) => handleTouchStart(e, work.id)}
                     onTouchEnd={(e) => { handlePressEnd(); e.stopPropagation(); }}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedId(work.id); }}
-                    className="w-full rounded-2xl px-4 py-4 text-left active:scale-[0.98] transition-all duration-200 border"
+                    className="w-full rounded-2xl px-4 py-3 text-left active:scale-[0.98] transition-all duration-200 border"
                     style={{
                       backgroundColor: done ? hex : "#24283b",
                       borderColor: isSelected ? "#7aa2f7" : done ? hex : "#3b4261",
@@ -144,21 +155,35 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 text-sm transition-all"
+                        className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 text-xs transition-all"
                         style={{
                           borderColor: done ? "#1a1b26" : hex,
                           backgroundColor: done ? "#1a1b26" : "transparent",
                           color: done ? hex : "transparent",
                         }}
                       >✓</span>
-                      <span
-                        className="font-bold text-base leading-tight line-clamp-2"
-                        style={{ color: done ? "#1a1b26" : "#c0caf5" }}
-                      >{work.title}</span>
-                    </div>
-                    <div className="mt-1.5 pl-9">
-                      <span className="text-xs font-medium" style={{ color: done ? "#1a1b2699" : "#787c99" }}>
-                        {done ? "完了" : "未完了"}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-sm leading-tight truncate" style={{ color: done ? "#1a1b26" : "#c0caf5" }}>
+                          {work.title}
+                        </div>
+                        {/* ⑧ タグ表示 */}
+                        {work.tags && work.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {work.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-xs px-1.5 py-0.5 rounded-full"
+                                style={{
+                                  backgroundColor: done ? "#1a1b2622" : "#2a2d3e",
+                                  color: done ? "#1a1b2699" : "#787c99",
+                                }}
+                              >#{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs font-medium shrink-0" style={{ color: done ? "#1a1b2699" : "#787c99" }}>
+                        {done ? readLabel : unreadLabel}
                       </span>
                     </div>
                   </button>
@@ -185,7 +210,6 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
             {filtered.map((work) => {
               const { read, total, percent } = calcWorkProgress(work.sections);
               const hex = ACCENT_COLORS[work.accentColor].hex;
-              const secLabel = work.sectionLabel || "セクション";
               const isSelected = selectedId === work.id;
               return (
                 <div key={work.id} className="relative">
@@ -206,12 +230,23 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-[#c0caf5] text-base leading-tight truncate">{work.title}</span>
+                      <span className="font-bold text-[#c0caf5] text-sm leading-tight truncate">{work.title}</span>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs text-[#787c99]">{read}/{total}{work.unit}</span>
                         <span className="text-xs font-bold" style={{ color: hex }}>{percent}%</span>
                       </div>
                     </div>
+                    {/* ⑧ タグ表示 */}
+                    {work.tags && work.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {work.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-xs px-1.5 py-0.5 rounded-full bg-[#2a2d3e] text-[#787c99]"
+                          >#{tag}</span>
+                        ))}
+                      </div>
+                    )}
                     <div className="h-1 bg-[#1a1b26] rounded-full overflow-hidden mt-2">
                       <div
                         className="h-full rounded-full transition-all duration-500"
@@ -256,6 +291,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
         <WorkModal
           mode="add"
           folderDefaults={folderDefaults}
+          folderAccentColor={folder.accentColor}
           onClose={() => setShowAdd(false)}
           onSave={(data) => { onAdd(data); setShowAdd(false); }}
         />
@@ -264,6 +300,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
         <WorkModal
           mode="edit"
           initial={editTarget}
+          folderAccentColor={folder.accentColor}
           onClose={() => setEditTarget(null)}
           onSave={(data) => { onEdit(editTarget.id, data); setEditTarget(null); }}
         />
