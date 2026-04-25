@@ -30,6 +30,13 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
 
+  // ⑥ visibilitychangeでモーダルを閉じない
+  useEffect(() => {
+    const handler = (e: Event) => { e.stopImmediatePropagation(); };
+    document.addEventListener("visibilitychange", handler, true);
+    return () => document.removeEventListener("visibilitychange", handler, true);
+  }, []);
+
   function handleSave() {
     const t = title.trim();
     if (!t) { setError("タイトルを入力してください"); return; }
@@ -60,27 +67,26 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             />
           </div>
 
+          {/* ③ 名称変更・説明削除 */}
           <div>
             <label className="block text-xs text-[#787c99] mb-2">管理タイプ</label>
             <div className="grid grid-cols-2 gap-2">
               {(["progress", "read"] as const).map((t) => {
                 const isSelected = folderType === t;
-                const label = t === "progress" ? "進捗管理" : "完了管理";
-                const desc = t === "progress" ? "話数・章などを細かく記録" : "完了／未完了をワンタップで管理";
+                const label = t === "progress" ? "進捗" : "完了";
                 return (
                   <button
                     key={t}
                     onClick={() => setFolderType(t)}
-                    className="rounded-xl border p-3 text-left transition-all active:scale-95"
+                    className="rounded-xl border p-3 text-center transition-all active:scale-95"
                     style={{
                       borderColor: isSelected ? ACCENT_COLORS[color].hex : "#3b4261",
                       backgroundColor: isSelected ? `${ACCENT_COLORS[color].hex}22` : "#24283b",
                     }}
                   >
-                    <div className="text-sm font-bold mb-1" style={{ color: isSelected ? ACCENT_COLORS[color].hex : "#c0caf5" }}>
+                    <div className="text-sm font-bold" style={{ color: isSelected ? ACCENT_COLORS[color].hex : "#c0caf5" }}>
                       {label}
                     </div>
-                    <div className="text-xs text-[#787c99] leading-tight">{desc}</div>
                   </button>
                 );
               })}
@@ -107,6 +113,7 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
             </div>
           </div>
 
+          {/* ④ 進捗タイプ：既存の詳細設定 */}
           {folderType === "progress" && (
             <div className="border-t border-[#3b4261] pt-4">
               <p className="text-xs text-[#787c99] mb-3">新規項目のデフォルト設定（省略可）</p>
@@ -123,6 +130,33 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
               <div>
                 <label className="block text-xs text-[#787c99] mb-1">単位</label>
                 <input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+          )}
+
+          {/* ④ 完了タイプ：ラベル入力欄 */}
+          {folderType === "read" && (
+            <div className="border-t border-[#3b4261] pt-4">
+              <p className="text-xs text-[#787c99] mb-3">ステータスラベル（省略可）</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-[#787c99] mb-1">未完了ラベル</label>
+                  <input
+                    value={defaultLabelUnread}
+                    onChange={(e) => setDefaultLabelUnread(e.target.value)}
+                    placeholder="未完了"
+                    className={`${inputClass} placeholder-[#4a5177]`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[#787c99] mb-1">完了ラベル</label>
+                  <input
+                    value={defaultLabelRead}
+                    onChange={(e) => setDefaultLabelRead(e.target.value)}
+                    placeholder="完了"
+                    className={`${inputClass} placeholder-[#4a5177]`}
+                  />
+                </div>
               </div>
             </div>
           )}
