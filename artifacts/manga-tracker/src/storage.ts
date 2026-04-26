@@ -1,13 +1,37 @@
 import { supabase } from "./lib/supabase";
-import type { Folder, Section } from "./types";
+import type { AccentColor, Folder, Section } from "./types";
 
 const LOCAL_KEY = "progress-checker-v3";
+
+const COLOR_MIGRATION: Record<string, AccentColor> = {
+  blue:   "brightBlue",
+  green:  "brightGreen",
+  red:    "brightPink",
+  purple: "brightPurple",
+  yellow: "mutedOrange",
+  teal:   "brightTeal",
+};
+
+function migrateColor(color: string): AccentColor {
+  return (COLOR_MIGRATION[color] as AccentColor) ?? "deepBlue";
+}
+
+function migrateFolders(folders: Folder[]): Folder[] {
+  return folders.map((f) => ({
+    ...f,
+    accentColor: migrateColor(f.accentColor),
+    works: f.works.map((w) => ({
+      ...w,
+      accentColor: migrateColor(w.accentColor),
+    })),
+  }));
+}
 
 // ---- ローカル（未ログイン時） ----
 export function loadFolders(): Folder[] {
   try {
     const raw = localStorage.getItem(LOCAL_KEY);
-    if (raw) return JSON.parse(raw) as Folder[];
+    if (raw) return migrateFolders(JSON.parse(raw) as Folder[]);
   } catch {}
   return [];
 }
@@ -26,7 +50,7 @@ export async function loadFoldersFromCloud(userId: string): Promise<Folder[] | n
     .eq("user_id", userId)
     .maybeSingle();
   if (error || !data) return null;
-  return data.data as Folder[];
+  return migrateFolders(data.data as Folder[]);
 }
 
 export async function saveFoldersToCloud(userId: string, folders: Folder[]): Promise<void> {
