@@ -36,6 +36,7 @@ export default function WorkDetailScreen({
   const [rangeEnd, setRangeEnd] = useState("");
   const [rangeError, setRangeError] = useState("");
   const touchStart = useRef({ x: 0, y: 0 });
+  const justBecameVisible = useRef(false);
 
   const accentHex = ACCENT_COLORS[work.accentColor].hex;
   const folderHex = ACCENT_COLORS[folder.accentColor].hex;
@@ -55,10 +56,23 @@ export default function WorkDetailScreen({
     } catch { /* ignore */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // タブから戻ったときのスワイプ誤検知を防ぐ
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        justBecameVisible.current = true;
+        setTimeout(() => { justBecameVisible.current = false; }, 500);
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
   function handleTouchStart(e: React.TouchEvent) {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   }
   function handleTouchEnd(e: React.TouchEvent) {
+    if (justBecameVisible.current) return;
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
     if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
