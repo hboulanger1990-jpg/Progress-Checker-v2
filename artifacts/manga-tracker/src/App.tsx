@@ -78,12 +78,24 @@ export default function App() {
 
   useEffect(() => {
     history.replaceState({ screen: "folders" } satisfies View, "");
+    let justBecameVisible = false;
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        justBecameVisible = true;
+        setTimeout(() => { justBecameVisible = false; }, 500);
+      }
+    }
     function handlePop(e: PopStateEvent) {
+      if (justBecameVisible) return;
       const v = e.state as View | null;
       applyView(v?.screen ? v : { screen: "folders" });
     }
+    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("popstate", handlePop);
-    return () => window.removeEventListener("popstate", handlePop);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("popstate", handlePop);
+    };
   }, [applyView]);
 
   function navigate(next: View) {
