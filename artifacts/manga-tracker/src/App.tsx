@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { AccentColor, Folder, Work, Section } from "./types";
 import { loadFolders, saveFolders, loadFoldersFromCloud, saveFoldersToCloud } from "./storage";
 import { supabase } from "./lib/supabase";
@@ -18,6 +18,7 @@ export default function App() {
   const [fading, setFading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+　const initialLoadDone = useRef(false);
 
   // ---- Auth ----
   useEffect(() => {
@@ -33,21 +34,22 @@ export default function App() {
   // ---- Load data ----
   useEffect(() => {
     async function load() {
-      setLoading(true);
-      if (user) {
-        const cloud = await loadFoldersFromCloud(user.id);
-        if (cloud) {
-          setFolders(cloud);
-        } else {
-          const local = loadFolders();
-          setFolders(local);
-          if (local.length > 0) await saveFoldersToCloud(user.id, local);
-        }
-      } else {
-        setFolders(loadFolders());
-      }
-      setLoading(false);
+  if (!initialLoadDone.current) setLoading(true);
+  if (user) {
+    const cloud = await loadFoldersFromCloud(user.id);
+    if (cloud) {
+      setFolders(cloud);
+    } else {
+      const local = loadFolders();
+      setFolders(local);
+      if (local.length > 0) await saveFoldersToCloud(user.id, local);
     }
+  } else {
+    setFolders(loadFolders());
+  }
+  setLoading(false);
+  initialLoadDone.current = true;
+}
     load();
   }, [user]);
 
