@@ -103,7 +103,7 @@ export default function SectionModal({ mode, initial, defaults, labelName = "セ
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={sectionMode === "text" ? undefined : onClose}
+        onClick={undefined}
       />
       <div
         className="relative w-full sm:max-w-sm bg-[#1f2335] border border-[#3b4261] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl overflow-y-auto"
