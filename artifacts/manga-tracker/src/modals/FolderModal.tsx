@@ -95,22 +95,22 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
 
           <div>
             <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
-            <div className="flex gap-2 flex-wrap">
-              {COLOR_KEYS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className="w-10 h-10 rounded-full transition-transform active:scale-90"
-                  style={{
-                    backgroundColor: ACCENT_COLORS[c].hex,
-                    outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
-                    outlineOffset: 2,
-                    opacity: color === c ? 1 : 0.5,
-                  }}
-                  aria-label={ACCENT_COLORS[c].label}
-                />
-              ))}
-            </div>
+            <div className="grid grid-cols-7 gap-2">
+  {COLOR_KEYS.map((c) => (
+    <button
+      key={c}
+      onClick={() => setColor(c)}
+      className="rounded-xl aspect-square transition-transform active:scale-90"
+      style={{
+        backgroundColor: ACCENT_COLORS[c].hex,
+        outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
+        outlineOffset: 2,
+        opacity: color === c ? 1 : 0.5,
+      }}
+      aria-label={ACCENT_COLORS[c].label}
+    />
+  ))}
+</div>
           </div>
 
           {/* ④ 進捗タイプ：既存の詳細設定 */}
