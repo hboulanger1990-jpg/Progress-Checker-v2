@@ -20,7 +20,7 @@ const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 
 export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "blue");
+  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "deepBlue");
   const [folderType, setFolderType] = useState<"progress" | "read">(initial?.type ?? "progress");
   const [defaultLabelUnread, setDefaultLabelUnread] = useState(initial?.defaultLabelUnread ?? "");
   const [defaultLabelRead, setDefaultLabelRead] = useState(initial?.defaultLabelRead ?? "");
