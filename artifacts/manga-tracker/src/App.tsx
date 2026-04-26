@@ -82,14 +82,15 @@ export default function App() {
     function handleVisibility() {
       if (document.visibilityState === "visible") {
         justBecameVisible = true;
-        setTimeout(() => { justBecameVisible = false; }, 500);
+        setTimeout(() => { justBecameVisible = false; }, 1000);
       }
     }
     function handlePop(e: PopStateEvent) {
       if (justBecameVisible) return;
       const v = e.state as View | null;
-      applyView(v?.screen ? v : { screen: "folders" });
-    }
+    if (!v?.screen) return;
+  applyView(v);
+}
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("popstate", handlePop);
     return () => {
