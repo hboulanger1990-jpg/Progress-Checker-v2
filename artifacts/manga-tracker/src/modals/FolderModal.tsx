@@ -20,7 +20,7 @@ const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 
 export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "deepBlue");
+  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? "blue");
   const [folderType, setFolderType] = useState<"progress" | "read">(initial?.type ?? "progress");
   const [defaultLabelUnread, setDefaultLabelUnread] = useState(initial?.defaultLabelUnread ?? "");
   const [defaultLabelRead, setDefaultLabelRead] = useState(initial?.defaultLabelRead ?? "");
@@ -95,12 +95,12 @@ export default function FolderModal({ mode, initial, onClose, onSave }: Props) {
 
           <div>
             <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
-            <div className="grid grid-cols-7 gap-2">
+            <div className="flex gap-2 flex-wrap">
   {COLOR_KEYS.map((c) => (
     <button
       key={c}
       onClick={() => setColor(c)}
-      className="rounded-xl aspect-square transition-transform active:scale-90"
+      className="w-10 h-10 rounded-full transition-transform active:scale-90"
       style={{
         backgroundColor: ACCENT_COLORS[c].hex,
         outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
