@@ -14,6 +14,10 @@ interface Props {
 const SECTION_MODE_KEY = "pc-section-mode-";
 
 export default function SectionModal({ mode, initial, defaults, labelName = "セクション", workId, onClose, onSave }: Props) {
+  const debugClose = () => {
+  console.trace("onClose called");
+  onClose();
+};
   const [label, setLabel] = useState(initial?.label ?? defaults?.label ?? "");
   const [startNum, setStartNum] = useState(String(initial?.startNum ?? defaults?.startNum ?? 1));
   const [endNum, setEndNum] = useState(
