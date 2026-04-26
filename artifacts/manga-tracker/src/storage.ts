@@ -2,12 +2,43 @@ import { supabase } from "./lib/supabase";
 import type { Folder, Section } from "./types";
 
 const LOCAL_KEY = "progress-checker-v3";
+const COLOR_ROLLBACK: Record<string, string> = {
+  brightPink:   "red",
+  brightTeal:   "teal",
+  brightBlue:   "blue",
+  vividOrange:  "yellow",
+  brightPurple: "purple",
+  brightGreen:  "green",
+  creamyWhite:  "blue",
+  deepPink:     "red",
+  smokyTeal:    "teal",
+  deepBlue:     "blue",
+  mutedOrange:  "yellow",
+  smokyPurple:  "purple",
+  mutedGreen:   "green",
+  darkGrey:     "blue",
+};
+
+function rollbackColor(color: string): string {
+  return COLOR_ROLLBACK[color] ?? color;
+}
+
+function rollbackFolders(folders: any[]): any[] {
+  return folders.map((f) => ({
+    ...f,
+    accentColor: rollbackColor(f.accentColor),
+    works: f.works.map((w: any) => ({
+      ...w,
+      accentColor: rollbackColor(w.accentColor),
+    })),
+  }));
+}
 
 // ---- ローカル（未ログイン時） ----
 export function loadFolders(): Folder[] {
   try {
     const raw = localStorage.getItem(LOCAL_KEY);
-    if (raw) return JSON.parse(raw) as Folder[];
+    if (raw) return rollbackFolders(JSON.parse(raw)) as Folder[];
   } catch {}
   return [];
 }
@@ -26,7 +57,7 @@ export async function loadFoldersFromCloud(userId: string): Promise<Folder[] | n
     .eq("user_id", userId)
     .maybeSingle();
   if (error || !data) return null;
-  return data.data as Folder[];
+  return rollbackFolders(data.data as any[]) as Folder[];
 }
 
 export async function saveFoldersToCloud(userId: string, folders: Folder[]): Promise<void> {
