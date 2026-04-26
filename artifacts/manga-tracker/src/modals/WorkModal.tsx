@@ -24,7 +24,7 @@ const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 export default function WorkModal({ mode, initial, folderDefaults, folderAccentColor, onClose, onSave }: Props) {
   // ⑤ 新規追加時はフォルダのアクセントカラーを初期値に
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? folderAccentColor ?? "blue");
+  const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? folderAccentColor ?? "deepBlue");
   const [labelUnread, setLabelUnread] = useState(initial?.labelUnread ?? folderDefaults?.labelUnread ?? "未完了");
   const [labelRead, setLabelRead] = useState(initial?.labelRead ?? folderDefaults?.labelRead ?? "完了");
   const [unit, setUnit] = useState(initial?.unit ?? folderDefaults?.unit ?? "");
@@ -94,22 +94,22 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
           </div>
           <div>
             <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
-            <div className="flex gap-2 flex-wrap">
-              {COLOR_KEYS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className="w-10 h-10 rounded-full transition-transform active:scale-90"
-                  style={{
-                    backgroundColor: ACCENT_COLORS[c].hex,
-                    outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
-                    outlineOffset: 2,
-                    opacity: color === c ? 1 : 0.5,
-                  }}
-                  aria-label={ACCENT_COLORS[c].label}
-                />
-              ))}
-            </div>
+            <div className="grid grid-cols-7 gap-2">
+  {COLOR_KEYS.map((c) => (
+    <button
+      key={c}
+      onClick={() => setColor(c)}
+      className="rounded-xl aspect-square transition-transform active:scale-90"
+      style={{
+        backgroundColor: ACCENT_COLORS[c].hex,
+        outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
+        outlineOffset: 2,
+        opacity: color === c ? 1 : 0.5,
+      }}
+      aria-label={ACCENT_COLORS[c].label}
+    />
+  ))}
+</div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
