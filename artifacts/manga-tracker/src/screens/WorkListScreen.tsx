@@ -24,6 +24,7 @@ interface Props {
 
 export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompleted, onAdd, onEdit, onDelete }: Props) {
   const [search, setSearch] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<Work | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -38,16 +39,34 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
     unit: folder.defaultUnit || "",
   };
 
-  // ⑥ タブ切替でモーダルが閉じない
   useEffect(() => {
     const handler = (e: Event) => { e.stopImmediatePropagation(); };
     document.addEventListener("visibilitychange", handler, true);
     return () => document.removeEventListener("visibilitychange", handler, true);
   }, []);
 
-  const filtered = folder.works.filter((w) =>
-    w.title.toLowerCase().includes(search.toLowerCase())
+  // ④ フォルダ内の全タグを収集（重複なし）
+  const allTags = Array.from(
+    new Set(folder.works.flatMap((w) => w.tags ?? []))
   );
+
+  // テキスト検索＋タグ絞り込み
+  const filtered = folder.works.filter((w) => {
+    const matchText = w.title.toLowerCase().includes(search.toLowerCase());
+    const matchTag = selectedTag ? (w.tags ?? []).includes(selectedTag) : true;
+    return matchText && matchTag;
+  });
+
+  // ⑦ 進捗管理：進行中(0<p<100) → 未着手(p=0) → 100%完了 の順にソート
+  const sortedFiltered = isReadMode ? filtered : [...filtered].sort((a, b) => {
+    const pa = calcWorkProgress(a.sections).percent;
+    const pb = calcWorkProgress(b.sections).percent;
+    const rankA = pa === 100 ? 2 : pa === 0 ? 1 : 0;
+    const rankB = pb === 100 ? 2 : pb === 0 ? 1 : 0;
+    if (rankA !== rankB) return rankA - rankB;
+    // 同ランク内はupdatedAtで降順（最近更新が上）
+    return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+  });
 
   function handleDelete(w: Work) {
     if (!window.confirm(`「${w.title}」を削除しますか？この操作は元に戻せません。`)) return;
@@ -99,6 +118,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
               </span>
             )}
           </div>
+          {/* 検索バー */}
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99] text-sm">🔍</span>
             <input
@@ -111,22 +131,44 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#787c99] text-lg leading-none">✕</button>
             )}
           </div>
+          {/* ④ タグ一覧（検索バー直下） */}
+          {allTags.length > 0 && (
+            <div className="flex gap-1.5 mt-2 flex-wrap">
+              {allTags.map((tag) => {
+                const isActive = selectedTag === tag;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTag(isActive ? null : tag)}
+                    className="text-xs px-2.5 py-1 rounded-full border transition-all active:scale-95"
+                    style={
+                      isActive
+                        ? { backgroundColor: folderHex, color: "#1a1b26", borderColor: folderHex }
+                        : { backgroundColor: "#24283b", color: "#787c99", borderColor: "#3b4261" }
+                    }
+                  >
+                    #{tag}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </header>
 
       <main className="flex-1 px-4 py-3 max-w-lg mx-auto w-full pb-32">
-        {filtered.length === 0 ? (
+        {sortedFiltered.length === 0 ? (
           <div className="mt-20 text-center space-y-2">
             <p className="text-4xl">📖</p>
             <p className="text-[#787c99] text-sm">
-              {search ? `「${search}」は見つかりませんでした` : "項目がありません"}
+              {search || selectedTag ? "条件に一致する項目はありません" : "項目がありません"}
             </p>
-            {!search && <p className="text-[#4a5177] text-xs">下のボタンから追加しましょう</p>}
+            {!search && !selectedTag && <p className="text-[#4a5177] text-xs">下のボタンから追加しましょう</p>}
           </div>
         ) : isReadMode ? (
           /* ---- 完了管理モード ---- */
           <div className="space-y-2">
-            {filtered.map((work) => {
+            {sortedFiltered.map((work) => {
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const done = !!work.completed;
               const isSelected = selectedId === work.id;
@@ -134,7 +176,6 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
               const readLabel = work.labelRead || folder.defaultLabelRead || "完了";
               return (
                 <div key={work.id} className="relative">
-                  {/* ⑧ 完了管理カード：進捗管理と同じ細さに */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -153,7 +194,8 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                       borderColor: isSelected ? "#7aa2f7" : done ? hex : "#3b4261",
                     }}
                   >
-                    <div className="flex items-center gap-3">
+                    {/* ⑧ タイトル・タグ・ステータスを1行に */}
+                    <div className="flex items-center gap-2 min-w-0">
                       <span
                         className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 text-xs transition-all"
                         style={{
@@ -162,26 +204,28 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                           color: done ? hex : "transparent",
                         }}
                       >✓</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-sm leading-tight truncate" style={{ color: done ? "#1a1b26" : "#c0caf5" }}>
-                          {work.title}
+                      {/* ⑧ タイトルをtruncateで省略 */}
+                      <span
+                        className="font-bold text-sm leading-tight truncate flex-1 min-w-0"
+                        style={{ color: done ? "#1a1b26" : "#c0caf5" }}
+                      >
+                        {work.title}
+                      </span>
+                      {/* ⑧ タグを右寄せ、アクセントカラー */}
+                      {work.tags && work.tags.length > 0 && (
+                        <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[40%]">
+                          {work.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                              style={{
+                                backgroundColor: done ? "#1a1b2622" : `${hex}22`,
+                                color: done ? "#1a1b2699" : hex,
+                              }}
+                            >#{tag}</span>
+                          ))}
                         </div>
-                        {/* ⑧ タグ表示 */}
-                        {work.tags && work.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {work.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="text-xs px-1.5 py-0.5 rounded-full"
-                                style={{
-                                  backgroundColor: done ? "#1a1b2622" : "#2a2d3e",
-                                  color: done ? "#1a1b2699" : "#787c99",
-                                }}
-                              >#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      )}
                       <span className="text-xs font-medium shrink-0" style={{ color: done ? "#1a1b2699" : "#787c99" }}>
                         {done ? readLabel : unreadLabel}
                       </span>
@@ -207,7 +251,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
         ) : (
           /* ---- 進捗管理モード ---- */
           <div className="space-y-2">
-            {filtered.map((work) => {
+            {sortedFiltered.map((work) => {
               const { read, total, percent } = calcWorkProgress(work.sections);
               const hex = ACCENT_COLORS[work.accentColor].hex;
               const isSelected = selectedId === work.id;
@@ -229,30 +273,33 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                       isSelected ? "border-[#7aa2f7] ring-2 ring-[#7aa2f7]/30" : "border-[#3b4261]"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    {/* ⑤ タイトル行（右に進捗数字） */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
                       <span className="font-bold text-[#c0caf5] text-sm leading-tight truncate">{work.title}</span>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs text-[#787c99]">{read}/{total}{work.unit}</span>
                         <span className="text-xs font-bold" style={{ color: hex }}>{percent}%</span>
                       </div>
                     </div>
-                    {/* ⑧ タグ表示 */}
-                    {work.tags && work.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {work.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-xs px-1.5 py-0.5 rounded-full bg-[#2a2d3e] text-[#787c99]"
-                          >#{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="h-1 bg-[#1a1b26] rounded-full overflow-hidden mt-2">
+                    {/* ⑤ 進捗バー */}
+                    <div className="h-1 bg-[#1a1b26] rounded-full overflow-hidden mb-1.5">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{ width: `${percent}%`, backgroundColor: hex }}
                       />
                     </div>
+                    {/* ⑤ タグ（アクセントカラーで表示） */}
+                    {work.tags && work.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {work.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-xs px-1.5 py-0.5 rounded-full"
+                            style={{ backgroundColor: `${hex}22`, color: hex }}
+                          >#{tag}</span>
+                        ))}
+                      </div>
+                    )}
                   </button>
 
                   {isSelected && (
@@ -292,6 +339,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
           mode="add"
           folderDefaults={folderDefaults}
           folderAccentColor={folder.accentColor}
+          existingTags={allTags}
           onClose={() => setShowAdd(false)}
           onSave={(data) => { onAdd(data); setShowAdd(false); }}
         />
@@ -301,6 +349,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
           mode="edit"
           initial={editTarget}
           folderAccentColor={folder.accentColor}
+          existingTags={allTags}
           onClose={() => setEditTarget(null)}
           onSave={(data) => { onEdit(editTarget.id, data); setEditTarget(null); }}
         />
