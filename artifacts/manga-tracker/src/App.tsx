@@ -18,7 +18,7 @@ export default function App() {
   const [fading, setFading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-　const initialLoadDone = useRef(false);
+  const initialLoadDone = useRef(false);
 
   // ---- Auth ----
   useEffect(() => {
