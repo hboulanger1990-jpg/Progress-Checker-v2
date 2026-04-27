@@ -194,7 +194,7 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                       borderColor: isSelected ? "#7aa2f7" : done ? hex : "#3b4261",
                     }}
                   >
-                    {/* ⑧ タイトル・タグ・ステータスを1行に */}
+                    {/* ⑤ チェック＋タイトル＋タグのみ（ラベルテキスト非表示） */}
                     <div className="flex items-center gap-2 min-w-0">
                       <span
                         className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 text-xs transition-all"
@@ -204,16 +204,14 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                           color: done ? hex : "transparent",
                         }}
                       >✓</span>
-                      {/* ⑧ タイトルをtruncateで省略 */}
                       <span
                         className="font-bold text-sm leading-tight truncate flex-1 min-w-0"
                         style={{ color: done ? "#1a1b26" : "#c0caf5" }}
                       >
                         {work.title}
                       </span>
-                      {/* ⑧ タグを右寄せ、アクセントカラー */}
                       {work.tags && work.tags.length > 0 && (
-                        <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[40%]">
+                        <div className="flex gap-1 shrink-0 flex-wrap justify-end max-w-[45%]">
                           {work.tags.map((tag) => (
                             <span
                               key={tag}
@@ -226,9 +224,6 @@ export default function WorkListScreen({ folder, onBack, onSelect, onToggleCompl
                           ))}
                         </div>
                       )}
-                      <span className="text-xs font-medium shrink-0" style={{ color: done ? "#1a1b2699" : "#787c99" }}>
-                        {done ? readLabel : unreadLabel}
-                      </span>
                     </div>
                   </button>
 
