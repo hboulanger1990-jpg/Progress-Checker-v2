@@ -247,14 +247,18 @@ export default function WorkDetailScreen({
               <h1 className="font-bold text-[#c0caf5] text-base leading-tight truncate">{work.title}</h1>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {hasTextSections && (
+                <button
+                  onClick={() => setShowTextSearch((v) => !v)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] active:scale-95 transition-transform text-sm"
+                  style={{ color: showTextSearch ? accentHex : "#787c99", borderColor: showTextSearch ? accentHex : "#3b4261" }}
+                  aria-label="テキスト検索"
+                >⌕</button>
+              )}
               <button
                 onClick={() => setShowWorkEdit(true)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform text-sm"
-              >⚙️</button>
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#24283b] border border-[#3b4261] text-[#787c99] active:scale-95 transition-transform text-base leading-none"
-              >⋯</button>
+              >⚙</button>
             </div>
           </div>
           {showMenu && (
