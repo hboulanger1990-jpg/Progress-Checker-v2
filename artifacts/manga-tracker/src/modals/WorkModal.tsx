@@ -130,11 +130,11 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-[#787c99] mb-1">単位（省略可）</label>
-              <input value={unit} onChange={(e) => setUnit(e.target.value)} className={inputClass} />
+              <label className="block text-xs text-[#787c99] mb-1">単位</label>
+              <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="話・冊など" className={`${inputClass} placeholder-[#4a5177]`} />
             </div>
             <div>
-              <label className="block text-xs text-[#787c99] mb-1">セクションの呼称（省略可）</label>
+              <label className="block text-xs text-[#787c99] mb-1">セクション名</label>
               <input
                 value={sectionLabel}
                 onChange={(e) => setSectionLabel(e.target.value)}
