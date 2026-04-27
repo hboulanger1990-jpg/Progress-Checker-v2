@@ -29,9 +29,9 @@ export default function WorkDetailScreen({
   onReorderSections, onReorderItems,
 }: Props) {
   const [showWorkEdit, setShowWorkEdit] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [sectionModal, setSectionModal] = useState<SectionModalState>(null);
   const [textSearch, setTextSearch] = useState("");
+  const [showTextSearch, setShowTextSearch] = useState(false);
 
   // ① ドラッグ状態
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
@@ -86,11 +86,7 @@ export default function WorkDetailScreen({
     if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
   }
 
-  function handleDelete() {
-    setShowMenu(false);
-    if (!window.confirm(`「${work.title}」を削除しますか？この操作は元に戻せません。`)) return;
-    onDeleteWork();
-  }
+  
 
   function handleDeleteSection(s: Section) {
     if (!window.confirm(`「${s.label}」を削除しますか？`)) return;
@@ -261,16 +257,7 @@ export default function WorkDetailScreen({
               >⚙</button>
             </div>
           </div>
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-12 z-20 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-xl min-w-[160px] overflow-hidden">
-                <button onClick={handleDelete} className="w-full px-4 py-3 text-left text-sm text-[#f7768e] hover:bg-[#24283b] transition-colors">
-                  🗑 削除する
-                </button>
-              </div>
-            </>
-          )}
+          
         </div>
       </header>
 
@@ -305,8 +292,8 @@ export default function WorkDetailScreen({
         </div>
       </div>
 
-      {/* ③ テキストモード検索バー */}
-      {hasTextSections && (
+      {/* ① テキストモード検索バー（ヘッダーアイコンでトグル） */}
+      {hasTextSections && showTextSearch && (
         <div className="px-4 mb-2 max-w-lg mx-auto w-full">
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#787c99] text-sm">🔍</span>
@@ -406,8 +393,8 @@ export default function WorkDetailScreen({
                         <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
                         <span className="text-xs text-[#787c99] ml-2">
                           {section.mode === "text"
-                            ? `${sTotal}項目 · ${work.labelRead} ${sRead}/${sTotal}`
-                            : `${section.startNum}〜${section.endNum}${work.unit} · ${work.labelRead} ${sRead}/${sTotal}`
+                            ? `${sTotal}${work.unit || "項目"} · ${work.labelRead} ${sRead}/${sTotal}`
+                            : `${section.startNum}〜${section.endNum}${work.unit} · ${work.labelRead} ${sRead}/${sTotal}${work.unit}`
                           }
                         </span>
                       </div>
