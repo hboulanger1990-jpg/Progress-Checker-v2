@@ -20,7 +20,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
 
-  // ---- Auth ----
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -31,36 +30,33 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ---- Load data ----
   useEffect(() => {
     async function load() {
-  if (!initialLoadDone.current) setLoading(true);
-  if (user) {
-    const cloud = await loadFoldersFromCloud(user.id);
-    if (cloud) {
-      setFolders(cloud);
-    } else {
-      const local = loadFolders();
-      setFolders(local);
-      if (local.length > 0) await saveFoldersToCloud(user.id, local);
+      if (!initialLoadDone.current) setLoading(true);
+      if (user) {
+        const cloud = await loadFoldersFromCloud(user.id);
+        if (cloud) {
+          setFolders(cloud);
+        } else {
+          const local = loadFolders();
+          setFolders(local);
+          if (local.length > 0) await saveFoldersToCloud(user.id, local);
+        }
+      } else {
+        setFolders(loadFolders());
+      }
+      setLoading(false);
+      initialLoadDone.current = true;
     }
-  } else {
-    setFolders(loadFolders());
-  }
-  setLoading(false);
-  initialLoadDone.current = true;
-}
     load();
   }, [user]);
 
-  // ---- Save data ----
   useEffect(() => {
     if (loading) return;
     saveFolders(folders);
     if (user) saveFoldersToCloud(user.id, folders);
   }, [folders]);
 
-  // ---- Google login ----
   async function signInWithGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -72,7 +68,6 @@ export default function App() {
     await supabase.auth.signOut();
   }
 
-  // ---- History management ----
   const applyView = useCallback((next: View) => {
     setFading(true);
     setTimeout(() => { setView(next); setFading(false); }, 110);
@@ -90,9 +85,9 @@ export default function App() {
     function handlePop(e: PopStateEvent) {
       if (justBecameVisible) return;
       const v = e.state as View | null;
-    if (!v?.screen) return;
-  applyView(v);
-}
+      if (!v?.screen) return;
+      applyView(v);
+    }
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("popstate", handlePop);
     return () => {
@@ -142,7 +137,6 @@ export default function App() {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }));
   }
 
-  // ---- Work completed toggle (完了管理用) ----
   function toggleWorkCompleted(folderId: string, workId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
       ...f,
@@ -156,21 +150,39 @@ export default function App() {
     const section: Section = { ...s, id: crypto.randomUUID(), statuses: {} };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: [...w.sections, section], updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
-  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum">>) {
+  function editSection(folderId: string, workId: string, sectionId: string, updates: Partial<Pick<Section, "label" | "startNum" | "endNum" | "mode" | "items">>) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, ...updates }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
   function deleteSection(folderId: string, workId: string, sectionId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.filter((s) => s.id !== sectionId) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
 
+  // ---- Section reorder（①セクション並び替え） ----
+  function reorderSections(folderId: string, workId: string, newSections: Section[]) {
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
+      ...f,
+      updatedAt: Date.now(),
+      works: f.works.map((w) => w.id !== workId ? w : { ...w, sections: newSections, updatedAt: Date.now() })
+        .sort((a, b) => b.updatedAt - a.updatedAt),
+    }));
+  }
+
+  // ---- Item reorder（①テキストアイテム並び替え） ----
+  function reorderItems(folderId: string, workId: string, sectionId: string, newItems: string[], newStatuses: Section["statuses"]) {
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : {
+      ...f,
+      updatedAt: Date.now(),
+      works: f.works.map((w) => w.id !== workId ? w : {
+        ...w,
+        updatedAt: Date.now(),
+        sections: w.sections.map((s) => s.id !== sectionId ? s : { ...s, items: newItems, statuses: newStatuses }),
+      }).sort((a, b) => b.updatedAt - a.updatedAt),
+    }));
+  }
+
   // ---- Item toggle ----
   function toggleItem(folderId: string, workId: string, sectionId: string, num: number) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => { if (s.id !== sectionId) return s; const next = { ...s.statuses }; if (next[num]) delete next[num]; else next[num] = "read"; return { ...s, statuses: next }; }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
-  }
-
-  // ---- Bulk range ----
-  function bulkRange(folderId: string, workId: string, start: number, end: number, toRead: boolean) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, updatedAt: Date.now(), sections: w.sections.map((s) => { const next = { ...s.statuses }; for (let n = Math.max(start, s.startNum); n <= Math.min(end, s.endNum); n++) { if (toRead) next[n] = "read"; else delete next[n]; } return { ...s, statuses: next }; }) }).sort((a, b) => b.updatedAt - a.updatedAt) }));
   }
 
   // ---- Import ----
@@ -223,7 +235,8 @@ export default function App() {
           onEditSection={(sId, u) => editSection(currentFolder.id, currentWork.id, sId, u)}
           onDeleteSection={(sId) => deleteSection(currentFolder.id, currentWork.id, sId)}
           onToggleItem={(sId, n) => toggleItem(currentFolder.id, currentWork.id, sId, n)}
-          onBulkRange={(s, e, r) => bulkRange(currentFolder.id, currentWork.id, s, e, r)}
+          onReorderSections={(newSections) => reorderSections(currentFolder.id, currentWork.id, newSections)}
+          onReorderItems={(sId, newItems, newStatuses) => reorderItems(currentFolder.id, currentWork.id, sId, newItems, newStatuses)}
         />
       )}
     </div>
