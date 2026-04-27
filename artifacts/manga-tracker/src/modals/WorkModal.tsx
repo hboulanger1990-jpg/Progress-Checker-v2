@@ -7,6 +7,7 @@ interface Props {
   initial?: Work;
   folderDefaults?: { labelUnread: string; labelRead: string; unit: string };
   folderAccentColor?: AccentColor;
+  existingTags?: string[];
   onClose: () => void;
   onSave: (data: {
     title: string;
@@ -21,8 +22,7 @@ interface Props {
 
 const COLOR_KEYS = Object.keys(ACCENT_COLORS) as AccentColor[];
 
-export default function WorkModal({ mode, initial, folderDefaults, folderAccentColor, onClose, onSave }: Props) {
-  // ⑤ 新規追加時はフォルダのアクセントカラーを初期値に
+export default function WorkModal({ mode, initial, folderDefaults, folderAccentColor, existingTags = [], onClose, onSave }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [color, setColor] = useState<AccentColor>(initial?.accentColor ?? folderAccentColor ?? "blue");
   const [labelUnread, setLabelUnread] = useState(initial?.labelUnread ?? folderDefaults?.labelUnread ?? "未完了");
@@ -32,22 +32,29 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [error, setError] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
 
-  // ⑥ タブ切替でモーダルが閉じない
   useEffect(() => {
     const handler = (e: Event) => { e.stopImmediatePropagation(); };
     document.addEventListener("visibilitychange", handler, true);
     return () => document.removeEventListener("visibilitychange", handler, true);
   }, []);
 
-  function addTag() {
-    const t = tagInput.trim();
-    if (!t || tags.includes(t)) { setTagInput(""); return; }
+  // ⑥ タグ候補：入力値でフィルタ＋まだ追加していないもの
+  const tagSuggestions = existingTags.filter(
+    (t) => !tags.includes(t) && (tagInput.trim() === "" || t.toLowerCase().includes(tagInput.toLowerCase()))
+  );
+
+  function addTag(tag?: string) {
+    const t = (tag ?? tagInput).trim();
+    if (!t || tags.includes(t)) { setTagInput(""); setShowSuggestions(false); return; }
     setTags([...tags, t]);
     setTagInput("");
+    setShowSuggestions(false);
   }
 
   function removeTag(tag: string) {
@@ -95,21 +102,21 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
           <div>
             <label className="block text-xs text-[#787c99] mb-2">アクセントカラー</label>
             <div className="flex gap-2 flex-wrap">
-  {COLOR_KEYS.map((c) => (
-    <button
-      key={c}
-      onClick={() => setColor(c)}
-      className="w-10 h-10 rounded-full transition-transform active:scale-90"
-      style={{
-        backgroundColor: ACCENT_COLORS[c].hex,
-        outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
-        outlineOffset: 2,
-        opacity: color === c ? 1 : 0.5,
-      }}
-      aria-label={ACCENT_COLORS[c].label}
-    />
-  ))}
-</div>
+              {COLOR_KEYS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className="w-10 h-10 rounded-full transition-transform active:scale-90"
+                  style={{
+                    backgroundColor: ACCENT_COLORS[c].hex,
+                    outline: color === c ? `3px solid ${ACCENT_COLORS[c].hex}` : "none",
+                    outlineOffset: 2,
+                    opacity: color === c ? 1 : 0.5,
+                  }}
+                  aria-label={ACCENT_COLORS[c].label}
+                />
+              ))}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -137,21 +144,42 @@ export default function WorkModal({ mode, initial, folderDefaults, folderAccentC
             </div>
           </div>
 
-          {/* タグ入力 */}
+          {/* ⑥ タグ入力＋サジェスト */}
           <div>
             <label className="block text-xs text-[#787c99] mb-1">タグ（省略可）</label>
-            <div className="flex gap-2">
-              <input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                placeholder="タグを入力してEnter"
-                className={`${inputClass} placeholder-[#4a5177]`}
-              />
-              <button
-                onClick={addTag}
-                className="shrink-0 px-3 py-2 rounded-xl bg-[#2a2d3e] border border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform"
-              >追加</button>
+            <div className="relative">
+              <div className="flex gap-2">
+                <input
+                  ref={tagInputRef}
+                  value={tagInput}
+                  onChange={(e) => { setTagInput(e.target.value); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); addTag(); }
+                    if (e.key === "Escape") setShowSuggestions(false);
+                  }}
+                  placeholder="タグを入力またはタップで選択"
+                  className={`${inputClass} placeholder-[#4a5177] flex-1`}
+                />
+                <button
+                  onClick={() => addTag()}
+                  className="shrink-0 px-3 py-2 rounded-xl bg-[#2a2d3e] border border-[#3b4261] text-[#787c99] text-sm active:scale-95 transition-transform"
+                >追加</button>
+              </div>
+              {/* ⑥ サジェストドロップダウン */}
+              {showSuggestions && tagSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-[#1f2335] border border-[#3b4261] rounded-xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
+                  {tagSuggestions.map((tag) => (
+                    <button
+                      key={tag}
+                      onMouseDown={(e) => { e.preventDefault(); addTag(tag); }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-[#a9b1d6] hover:bg-[#24283b] transition-colors flex items-center gap-2"
+                    >
+                      <span className="text-[#787c99]">#</span>{tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
