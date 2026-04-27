@@ -125,6 +125,11 @@ export default function App() {
     mutate((prev) => prev.filter((f) => f.id !== id));
   }
 
+  // ---- Folder reorder ----
+  function reorderFolders(newFolders: Folder[]) {
+    mutate(() => newFolders);
+  }
+
   // ---- Work CRUD ----
   function addWork(folderId: string, data: { title: string; accentColor: AccentColor; labelUnread: string; labelRead: string; unit: string; sectionLabel: string; tags: string[] }) {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
@@ -135,6 +140,11 @@ export default function App() {
   }
   function deleteWork(folderId: string, workId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }));
+  }
+
+  // ---- Work reorder ----
+  function reorderWorks(folderId: string, newWorks: Work[]) {
+    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: newWorks }));
   }
 
   function toggleWorkCompleted(folderId: string, workId: string) {
@@ -210,6 +220,7 @@ export default function App() {
           onAdd={addFolder}
           onEdit={editFolder}
           onDelete={deleteFolder}
+          onReorder={reorderFolders}
           onImport={importHandler}
         />
       )}
@@ -222,6 +233,7 @@ export default function App() {
           onAdd={(data) => addWork(currentFolder.id, data)}
           onEdit={(wId, updates) => editWork(currentFolder.id, wId, updates)}
           onDelete={(wId) => deleteWork(currentFolder.id, wId)}
+          onReorder={(newWorks) => reorderWorks(currentFolder.id, newWorks)}
         />
       )}
       {view.screen === "detail" && currentFolder && currentWork && (
