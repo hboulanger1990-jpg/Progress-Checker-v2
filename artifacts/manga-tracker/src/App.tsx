@@ -135,9 +135,14 @@ export default function App() {
     const work: Work = { ...data, id: crypto.randomUUID(), sections: [], updatedAt: Date.now() };
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: [work, ...f.works], updatedAt: Date.now() }));
   }
-  function editWork(folderId: string, workId: string, updates: Partial<Pick<Work, "title" | "accentColor" | "labelUnread" | "labelRead" | "unit" | "sectionLabel" | "tags">>) {
-    mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, updatedAt: Date.now(), works: f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() }).sort((a, b) => b.updatedAt - a.updatedAt) }));
-  }
+  function editWork(folderId: string, workId: string, updates: ...) {
+  mutate((prev) => prev.map((f) => {
+    if (f.id !== folderId) return f;
+    const updatedWorks = f.works.map((w) => w.id !== workId ? w : { ...w, ...updates, updatedAt: Date.now() });
+    const sorted = f.type === "read" ? updatedWorks : updatedWorks.sort((a, b) => b.updatedAt - a.updatedAt);
+    return { ...f, updatedAt: Date.now(), works: sorted };
+  }));
+}
   function deleteWork(folderId: string, workId: string) {
     mutate((prev) => prev.map((f) => f.id !== folderId ? f : { ...f, works: f.works.filter((w) => w.id !== workId), updatedAt: Date.now() }));
   }
