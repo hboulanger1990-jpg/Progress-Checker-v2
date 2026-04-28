@@ -36,12 +36,15 @@ export default function WorkDetailScreen({
 
   // ドラッグ状態
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
-  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
+  const [dragOverSectionIdx, setDragOverSectionIdx] = useState<number | null>(null); // インデックスに変更
   const [draggingItem, setDraggingItem] = useState<{ sectionId: string; idx: number } | null>(null);
   const [dragOverItemIdx, setDragOverItemIdx] = useState<number | null>(null);
 
   const touchStart = useRef({ x: 0, y: 0 });
   const justBecameVisible = useRef(false);
+  // タッチドラッグ用のwindowリスナー管理
+  const touchMoveHandler = useRef<((e: TouchEvent) => void) | null>(null);
+  const touchEndHandler = useRef<((e: TouchEvent) => void) | null>(null);
 
   const accentHex = ACCENT_COLORS[work.accentColor].hex;
   const folderHex = ACCENT_COLORS[folder.accentColor].hex;
@@ -49,7 +52,6 @@ export default function WorkDetailScreen({
   const secLabel = work.sectionLabel || "セクション";
   const ltKey = `${LAST_TOGGLE_PREFIX}${work.id}`;
 
-  // ③ テキストモードのセクションが存在するか
   const hasTextSections = work.sections.some((s) => s.mode === "text");
 
   useEffect(() => {
@@ -75,6 +77,14 @@ export default function WorkDetailScreen({
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
+  // windowリスナーのクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (touchMoveHandler.current) window.removeEventListener("touchmove", touchMoveHandler.current);
+      if (touchEndHandler.current) window.removeEventListener("touchend", touchEndHandler.current);
+    };
+  }, []);
+
   function handleTouchStart(e: React.TouchEvent) {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   }
@@ -84,8 +94,6 @@ export default function WorkDetailScreen({
     const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
     if (touchStart.current.x < 40 && dx > 80 && dy < 80) onBack();
   }
-
-  
 
   function handleDeleteSection(s: Section) {
     if (!window.confirm(`「${s.label}」を削除しますか？`)) return;
@@ -110,98 +118,118 @@ export default function WorkDetailScreen({
     return { label: `${n + 1}`, startNum, endNum: startNum + lastCount - 1 };
   }
 
-  // セクションドラッグ（タッチ・ハンドル直接）
-  function handleSectionTouchStart(e: React.TouchEvent, sectionId: string) {
-    if (!sortMode) return;
-    e.stopPropagation();
+  // ---- セクションドラッグ（ハンドル直接タッチ、windowリスナー方式） ----
+  function startSectionDrag(sectionId: string) {
     setDraggingSectionId(sectionId);
-  }
 
-  function handleSectionTouchMove(e: React.TouchEvent) {
-    if (!sortMode || !draggingSectionId) {
-      return;
-    }
-    e.preventDefault();
-    const y = e.touches[0].clientY;
-    // ドラッグ中のホバー先を検出
-    const els = document.querySelectorAll("[data-section-id]");
-    for (const el of els) {
-      const rect = el.getBoundingClientRect();
-      if (y >= rect.top && y <= rect.bottom) {
-        const id = (el as HTMLElement).dataset.sectionId!;
-        if (id !== draggingSectionId) setDragOverSectionId(id);
-        break;
+    const onMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const y = e.touches[0].clientY;
+      const els = document.querySelectorAll("[data-section-id]");
+      let found: number | null = null;
+      for (let i = 0; i < els.length; i++) {
+        const rect = els[i].getBoundingClientRect();
+        // アイテムの上半分なら i、下半分なら i+1 の手前（線をその間に引く）
+        const mid = rect.top + rect.height / 2;
+        if (y < mid) { found = i; break; }
+        found = i + 1;
       }
-    }
-  }
+      setDragOverSectionIdx(found);
+    };
 
-  function handleSectionTouchEnd() {
-    if (sectionLongPressTimer.current) clearTimeout(sectionLongPressTimer.current);
-    if (draggingSectionId && dragOverSectionId) {
-      const sections = [...work.sections];
-      const fromIdx = sections.findIndex((s) => s.id === draggingSectionId);
-      const toIdx = sections.findIndex((s) => s.id === dragOverSectionId);
-      if (fromIdx !== -1 && toIdx !== -1) {
-        const [moved] = sections.splice(fromIdx, 1);
-        sections.splice(toIdx, 0, moved);
-        onReorderSections(sections);
-      }
-    }
-    setDraggingSectionId(null);
-    setDragOverSectionId(null);
-  }
+    const onEnd = () => {
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+      touchMoveHandler.current = null;
+      touchEndHandler.current = null;
 
-  // アイテムドラッグ（タッチ・ハンドル直接）
-  function handleItemTouchStart(e: React.TouchEvent, sectionId: string, idx: number) {
-    if (!sortMode) return;
-    e.stopPropagation();
-    setDraggingItem({ sectionId, idx });
-  }
-
-  function handleItemTouchMove(e: React.TouchEvent, sectionId: string, _itemCount: number) {
-    if (!sortMode || !draggingItem || draggingItem.sectionId !== sectionId) {
-      return;
-    }
-    e.preventDefault();
-    const y = e.touches[0].clientY;
-    const els = document.querySelectorAll(`[data-item-section="${sectionId}"]`);
-    for (let i = 0; i < els.length; i++) {
-      const rect = els[i].getBoundingClientRect();
-      if (y >= rect.top && y <= rect.bottom) {
-        if (i !== draggingItem.idx) setDragOverItemIdx(i);
-        break;
-      }
-    }
-  }
-
-  function handleItemTouchEnd(section: Section) {
-    if (itemLongPressTimer.current) clearTimeout(itemLongPressTimer.current);
-    if (draggingItem && draggingItem.sectionId === section.id && dragOverItemIdx !== null && draggingItem.idx !== dragOverItemIdx) {
-      const items = [...(section.items ?? [])];
-      const [movedItem] = items.splice(draggingItem.idx, 1);
-      items.splice(dragOverItemIdx, 0, movedItem);
-      // statuses のキーを再マッピング
-      const oldStatuses = section.statuses;
-      const newStatuses: Section["statuses"] = {};
-      items.forEach((_, newIdx) => {
-        const newNum = section.startNum + newIdx;
-        // 元のインデックスを逆算して旧ステータスをコピー
-        const origItems = section.items ?? [];
-        const origIdx = origItems.indexOf(movedItem) === newIdx
-          ? draggingItem!.idx
-          : newIdx < dragOverItemIdx!
-            ? newIdx
-            : newIdx;
-        const origNum = section.startNum + origIdx;
-        if (oldStatuses[origNum]) newStatuses[newNum] = "read";
+      setDraggingSectionId((cur) => {
+        setDragOverSectionIdx((overIdx) => {
+          if (cur !== null && overIdx !== null) {
+            const sections = [...work.sections];
+            const fromIdx = sections.findIndex((s) => s.id === cur);
+            if (fromIdx !== -1) {
+              const adjustedTo = overIdx > fromIdx ? overIdx - 1 : overIdx;
+              if (adjustedTo !== fromIdx) {
+                const [moved] = sections.splice(fromIdx, 1);
+                sections.splice(adjustedTo, 0, moved);
+                onReorderSections(sections);
+              }
+            }
+          }
+          return null;
+        });
+        return null;
       });
-      onReorderItems(section.id, items, newStatuses);
-    }
-    setDraggingItem(null);
-    setDragOverItemIdx(null);
+    };
+
+    if (touchMoveHandler.current) window.removeEventListener("touchmove", touchMoveHandler.current);
+    if (touchEndHandler.current) window.removeEventListener("touchend", touchEndHandler.current);
+    touchMoveHandler.current = onMove;
+    touchEndHandler.current = onEnd;
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onEnd);
   }
 
-  // ③ テキスト検索フィルタ
+  // ---- アイテムドラッグ（ハンドル直接タッチ、windowリスナー方式） ----
+  function startItemDrag(sectionId: string, idx: number) {
+    setDraggingItem({ sectionId, idx });
+
+    const onMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const y = e.touches[0].clientY;
+      const els = document.querySelectorAll(`[data-item-section="${sectionId}"]`);
+      let found: number | null = null;
+      for (let i = 0; i < els.length; i++) {
+        const rect = els[i].getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if (y < mid) { found = i; break; }
+        found = i + 1;
+      }
+      setDragOverItemIdx(found);
+    };
+
+    const onEnd = () => {
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+      touchMoveHandler.current = null;
+      touchEndHandler.current = null;
+
+      setDraggingItem((di) => {
+        setDragOverItemIdx((overIdx) => {
+          if (di && di.sectionId === sectionId && overIdx !== null) {
+            const section = work.sections.find((s) => s.id === sectionId);
+            if (section) {
+              const adjustedTo = overIdx > di.idx ? overIdx - 1 : overIdx;
+              if (adjustedTo !== di.idx) {
+                const items = [...(section.items ?? [])];
+                const [movedItem] = items.splice(di.idx, 1);
+                items.splice(adjustedTo, 0, movedItem);
+                const newStatuses: Section["statuses"] = {};
+                items.forEach((it, newIdx) => {
+                  const origIdx = section.items!.indexOf(it);
+                  if (section.statuses[section.startNum + origIdx]) {
+                    newStatuses[section.startNum + newIdx] = "read";
+                  }
+                });
+                onReorderItems(sectionId, items, newStatuses);
+              }
+            }
+          }
+          return null;
+        });
+        return null;
+      });
+    };
+
+    if (touchMoveHandler.current) window.removeEventListener("touchmove", touchMoveHandler.current);
+    if (touchEndHandler.current) window.removeEventListener("touchend", touchEndHandler.current);
+    touchMoveHandler.current = onMove;
+    touchEndHandler.current = onEnd;
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onEnd);
+  }
+
   const filteredSections = useCallback(() => {
     if (!textSearch.trim()) return work.sections;
     return work.sections.map((s) => {
@@ -257,7 +285,6 @@ export default function WorkDetailScreen({
               >⚙️</button>
             </div>
           </div>
-          
         </div>
       </header>
 
@@ -292,14 +319,12 @@ export default function WorkDetailScreen({
         </div>
       </div>
 
-      {/* 並び替えモードヒント */}
       {sortMode && (
         <div className="px-4 py-1.5 max-w-lg mx-auto w-full">
           <p className="text-xs text-[#787c99] text-center">ハンドルをドラッグして並び替え　↕ で終了</p>
         </div>
       )}
 
-      {/* テキストモード検索バー */}
       {hasTextSections && showTextSearch && !sortMode && (
         <div className="px-4 mb-2 max-w-lg mx-auto w-full">
           <div className="relative">
@@ -332,198 +357,212 @@ export default function WorkDetailScreen({
           </div>
         ) : (
           <div className="space-y-5">
-            {filteredSections().map((section) => {
+            {/* セクションドロップ先インジケーター（先頭） */}
+            {sortMode && draggingSectionId && dragOverSectionIdx === 0 && (
+              <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />
+            )}
+            {filteredSections().map((section, sectionIndex) => {
               const sectionWithFilter = section as Section & { _filteredItems?: string[] };
               const displayItems = sectionWithFilter._filteredItems ?? section.items ?? [];
               const { read: sRead, total: sTotal } = calcSectionProgress(section);
               const isDraggingThis = draggingSectionId === section.id;
-              const isDragOver = dragOverSectionId === section.id;
 
               return (
-                <div
-                  key={section.id}
-                  data-section-id={section.id}
-                  className={`transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""} ${isDragOver ? "ring-2 rounded-xl" : ""}`}
-                  style={isDragOver ? { ringColor: accentHex } : {}}
-                  onTouchMove={(e) => handleSectionTouchMove(e)}
-                  onTouchEnd={handleSectionTouchEnd}
-                >
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {/* セクションドラッグハンドル（並び替えモード時のみ表示） */}
-                      {sortMode && <button
-                        className="shrink-0 w-7 h-7 flex items-center justify-center text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none"
-                        onTouchStart={(e) => { e.stopPropagation(); handleSectionTouchStart(e, section.id); }}
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          // マウスでのドラッグ
-                          setDraggingSectionId(section.id);
-                          const onMouseMove = (me: MouseEvent) => {
-                            const els = document.querySelectorAll("[data-section-id]");
-                            for (const el of els) {
-                              const rect = el.getBoundingClientRect();
-                              if (me.clientY >= rect.top && me.clientY <= rect.bottom) {
-                                const id = (el as HTMLElement).dataset.sectionId!;
-                                if (id !== section.id) setDragOverSectionId(id);
-                                break;
-                              }
-                            }
-                          };
-                          const onMouseUp = () => {
-                            window.removeEventListener("mousemove", onMouseMove);
-                            window.removeEventListener("mouseup", onMouseUp);
-                            setDraggingSectionId((cur) => {
-                              setDragOverSectionId((over) => {
-                                if (cur && over) {
-                                  const sections = [...work.sections];
-                                  const fromIdx = sections.findIndex((s) => s.id === cur);
-                                  const toIdx = sections.findIndex((s) => s.id === over);
-                                  if (fromIdx !== -1 && toIdx !== -1) {
-                                    const [moved] = sections.splice(fromIdx, 1);
-                                    sections.splice(toIdx, 0, moved);
-                                    onReorderSections(sections);
-                                  }
-                                }
-                                return null;
-                              });
-                              return null;
-                            });
-                          };
-                          window.addEventListener("mousemove", onMouseMove);
-                          window.addEventListener("mouseup", onMouseUp);
-                        }}
-                        aria-label="セクションを並び替え"
-                      >
-                        ⠿
-                      </button>}
-                      <div className="min-w-0">
-                        <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
-                        <span className="text-xs text-[#787c99] ml-2">
-                          {section.mode === "text"
-                            ? `${sTotal}${work.unit || "項目"} · ${work.labelRead} ${sRead}/${sTotal}`
-                            : `${section.startNum}〜${section.endNum}${work.unit} · ${work.labelRead} ${sRead}/${sTotal}${work.unit}`
-                          }
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setSectionModal({ mode: "edit", section })}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[#787c99] text-xs active:scale-95 transition-transform"
-                      >⚙️</button>
-                      <button
-                        onClick={() => handleDeleteSection(section)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[#f7768e] text-xs active:scale-95 transition-transform"
-                      >🗑</button>
-                    </div>
-                  </div>
-
-                  {section.mode === "text" && section.items ? (
-                    <div className="space-y-1.5">
-                      {displayItems.map((itemLabel, idx) => {
-                        // 検索時は元のitemsから実インデックスを探す
-                        const realIdx = section.items!.indexOf(itemLabel);
-                        const num = section.startNum + (textSearch ? realIdx : idx);
-                        const isRead = !!section.statuses[num];
-                        const isDraggingThisItem = draggingItem?.sectionId === section.id && draggingItem?.idx === idx;
-                        const isDragOverItem = draggingItem?.sectionId === section.id && dragOverItemIdx === idx;
-                        return (
+                <div key={section.id}>
+                  <div
+                    data-section-id={section.id}
+                    className={`transition-all duration-150 ${isDraggingThis ? "opacity-40 scale-[0.98]" : ""}`}
+                  >
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {sortMode && (
                           <button
-                            key={`${section.id}-${idx}`}
-                            id={`item-${section.id}-${num}`}
-                            data-item-section={section.id}
-                            onClick={() => handleToggle(section.id, num)}
-                            onTouchStart={(e) => { e.stopPropagation(); }}
-                            onTouchMove={(e) => handleItemTouchMove(e, section.id, displayItems.length)}
-                            onTouchEnd={(e) => { e.stopPropagation(); handleItemTouchEnd(section); }}
-                            
-                            className={`w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation active:scale-[0.98] transition-all duration-100 ${isDraggingThisItem ? "opacity-40" : ""} ${isDragOverItem ? "ring-2 ring-offset-1 ring-offset-[#1a1b26]" : ""}`}
-                            style={
-                              isRead
-                                ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex, ...(isDragOverItem ? { ringColor: accentHex } : {}) }
-                                : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
-                            }
-                          >
-                            <div className="flex items-center gap-2">
-                              {sortMode && (
-                                <span
-                                  className="text-[#4a5177] text-base cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
-                                  onTouchStart={(e) => { e.stopPropagation(); handleItemTouchStart(e, section.id, idx); }}
-                                  onMouseDown={(e) => {
-                                    if (!sortMode) return;
-                                    e.stopPropagation();
-                                    const startY = e.clientY;
-                                    setDraggingItem({ sectionId: section.id, idx });
-                                    const onMove = (me: MouseEvent) => {
-                                      const els = document.querySelectorAll(`[data-item-section="${section.id}"]`);
-                                      for (let i = 0; i < els.length; i++) {
-                                        const rect = els[i].getBoundingClientRect();
-                                        if (me.clientY >= rect.top && me.clientY <= rect.bottom) {
-                                          if (i !== idx) setDragOverItemIdx(i);
-                                          break;
+                            className="shrink-0 w-7 h-7 flex items-center justify-center text-[#4a5177] cursor-grab active:cursor-grabbing touch-none select-none"
+                            onTouchStart={(e) => { e.stopPropagation(); startSectionDrag(section.id); }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setDraggingSectionId(section.id);
+                              const onMove = (me: MouseEvent) => {
+                                const els = document.querySelectorAll("[data-section-id]");
+                                let found: number | null = null;
+                                for (let i = 0; i < els.length; i++) {
+                                  const rect = els[i].getBoundingClientRect();
+                                  const mid = rect.top + rect.height / 2;
+                                  if (me.clientY < mid) { found = i; break; }
+                                  found = i + 1;
+                                }
+                                setDragOverSectionIdx(found);
+                              };
+                              const onUp = () => {
+                                window.removeEventListener("mousemove", onMove);
+                                window.removeEventListener("mouseup", onUp);
+                                setDraggingSectionId((cur) => {
+                                  setDragOverSectionIdx((overIdx) => {
+                                    if (cur !== null && overIdx !== null) {
+                                      const sections = [...work.sections];
+                                      const fromIdx = sections.findIndex((s) => s.id === cur);
+                                      if (fromIdx !== -1) {
+                                        const adjustedTo = overIdx > fromIdx ? overIdx - 1 : overIdx;
+                                        if (adjustedTo !== fromIdx) {
+                                          const [moved] = sections.splice(fromIdx, 1);
+                                          sections.splice(adjustedTo, 0, moved);
+                                          onReorderSections(sections);
                                         }
                                       }
-                                    };
-                                    const onUp = () => {
-                                      window.removeEventListener("mousemove", onMove);
-                                      window.removeEventListener("mouseup", onUp);
-                                      setDraggingItem((di) => {
-                                        setDragOverItemIdx((doi) => {
-                                          if (di && doi !== null && di.idx !== doi) {
-                                            const items = [...(section.items ?? [])];
-                                            const [movedItem] = items.splice(di.idx, 1);
-                                            items.splice(doi, 0, movedItem);
-                                            const newStatuses: Section["statuses"] = {};
-                                            items.forEach((it, newIdx) => {
-                                              const origIdx = section.items!.indexOf(it);
-                                              if (section.statuses[section.startNum + origIdx]) {
-                                                newStatuses[section.startNum + newIdx] = "read";
-                                              }
-                                            });
-                                            onReorderItems(section.id, items, newStatuses);
-                                          }
-                                          return null;
-                                        });
-                                        return null;
-                                      });
-                                    };
-                                    window.addEventListener("mousemove", onMove);
-                                    window.addEventListener("mouseup", onUp);
-                                  }}
-                                >⠿</span>
-                              )}
-                              {/* テキストモード：折り返し全文表示 */}
-                              <span className="whitespace-pre-wrap break-words flex-1">{itemLabel}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-                      {Array.from(
-                        { length: section.endNum - section.startNum + 1 },
-                        (_, i) => section.startNum + i
-                      ).map((num) => {
-                        const isRead = !!section.statuses[num];
-                        return (
-                          <button
-                            key={num}
-                            id={`item-${section.id}-${num}`}
-                            onClick={() => handleToggle(section.id, num)}
-                            className="border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation active:scale-90 transition-all duration-100"
-                            style={
-                              isRead
-                                ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
-                                : { backgroundColor: "#24283b", color: "#4a5177", borderColor: "#3b4261" }
+                                    }
+                                    return null;
+                                  });
+                                  return null;
+                                });
+                              };
+                              window.addEventListener("mousemove", onMove);
+                              window.addEventListener("mouseup", onUp);
+                            }}
+                            aria-label="セクションを並び替え"
+                          >⠿</button>
+                        )}
+                        <div className="min-w-0">
+                          <span className="font-bold text-[#c0caf5] text-sm">{section.label}</span>
+                          <span className="text-xs text-[#787c99] ml-2">
+                            {section.mode === "text"
+                              ? `${sTotal}${work.unit || "項目"} · ${work.labelRead} ${sRead}/${sTotal}`
+                              : `${section.startNum}〜${section.endNum}${work.unit} · ${work.labelRead} ${sRead}/${sTotal}${work.unit}`
                             }
-                            aria-label={`${num}${work.unit}`}
-                          >
-                            {num}
-                          </button>
-                        );
-                      })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setSectionModal({ mode: "edit", section })}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#787c99] text-xs active:scale-95 transition-transform"
+                        >⚙️</button>
+                        <button
+                          onClick={() => handleDeleteSection(section)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#f7768e] text-xs active:scale-95 transition-transform"
+                        >🗑</button>
+                      </div>
                     </div>
+
+                    {section.mode === "text" && section.items ? (
+                      <div className="space-y-1.5">
+                        {/* アイテムドロップ先インジケーター（先頭） */}
+                        {sortMode && draggingItem?.sectionId === section.id && dragOverItemIdx === 0 && (
+                          <div className="h-0.5 rounded-full mx-1" style={{ backgroundColor: accentHex }} />
+                        )}
+                        {displayItems.map((itemLabel, idx) => {
+                          const realIdx = section.items!.indexOf(itemLabel);
+                          const num = section.startNum + (textSearch ? realIdx : idx);
+                          const isRead = !!section.statuses[num];
+                          const isDraggingThisItem = draggingItem?.sectionId === section.id && draggingItem?.idx === idx;
+                          return (
+                            <div key={`${section.id}-${idx}`}>
+                              <button
+                                id={`item-${section.id}-${num}`}
+                                data-item-section={section.id}
+                                onClick={() => !sortMode && handleToggle(section.id, num)}
+                                onTouchStart={(e) => { e.stopPropagation(); }}
+                                className={`w-full border rounded-xl px-4 py-3 text-left text-sm font-medium select-none touch-manipulation transition-all duration-100 ${isDraggingThisItem ? "opacity-40" : ""} ${sortMode ? "" : "active:scale-[0.98]"}`}
+                                style={
+                                  isRead
+                                    ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
+                                    : { backgroundColor: "#24283b", color: "#c0caf5", borderColor: "#3b4261" }
+                                }
+                              >
+                                <div className="flex items-center gap-2">
+                                  {sortMode && (
+                                    <span
+                                      className="text-[#4a5177] text-base cursor-grab active:cursor-grabbing touch-none select-none shrink-0"
+                                      onTouchStart={(e) => { e.stopPropagation(); startItemDrag(section.id, idx); }}
+                                      onMouseDown={(e) => {
+                                        if (!sortMode) return;
+                                        e.stopPropagation();
+                                        setDraggingItem({ sectionId: section.id, idx });
+                                        const onMove = (me: MouseEvent) => {
+                                          const els = document.querySelectorAll(`[data-item-section="${section.id}"]`);
+                                          let found: number | null = null;
+                                          for (let i = 0; i < els.length; i++) {
+                                            const rect = els[i].getBoundingClientRect();
+                                            const mid = rect.top + rect.height / 2;
+                                            if (me.clientY < mid) { found = i; break; }
+                                            found = i + 1;
+                                          }
+                                          setDragOverItemIdx(found);
+                                        };
+                                        const onUp = () => {
+                                          window.removeEventListener("mousemove", onMove);
+                                          window.removeEventListener("mouseup", onUp);
+                                          setDraggingItem((di) => {
+                                            setDragOverItemIdx((doi) => {
+                                              if (di && doi !== null) {
+                                                const section2 = work.sections.find((s) => s.id === section.id);
+                                                if (section2) {
+                                                  const adjustedTo = doi > di.idx ? doi - 1 : doi;
+                                                  if (adjustedTo !== di.idx) {
+                                                    const items = [...(section2.items ?? [])];
+                                                    const [movedItem] = items.splice(di.idx, 1);
+                                                    items.splice(adjustedTo, 0, movedItem);
+                                                    const newStatuses: Section["statuses"] = {};
+                                                    items.forEach((it, newIdx) => {
+                                                      const origIdx = section2.items!.indexOf(it);
+                                                      if (section2.statuses[section2.startNum + origIdx]) {
+                                                        newStatuses[section2.startNum + newIdx] = "read";
+                                                      }
+                                                    });
+                                                    onReorderItems(section.id, items, newStatuses);
+                                                  }
+                                                }
+                                              }
+                                              return null;
+                                            });
+                                            return null;
+                                          });
+                                        };
+                                        window.addEventListener("mousemove", onMove);
+                                        window.addEventListener("mouseup", onUp);
+                                      }}
+                                    >⠿</span>
+                                  )}
+                                  <span className="whitespace-pre-wrap break-words flex-1">{itemLabel}</span>
+                                </div>
+                              </button>
+                              {/* アイテム間のドロップ先インジケーター */}
+                              {sortMode && draggingItem?.sectionId === section.id && dragOverItemIdx === idx + 1 && (
+                                <div className="h-0.5 rounded-full mx-1 mt-1.5" style={{ backgroundColor: accentHex }} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
+                        {Array.from(
+                          { length: section.endNum - section.startNum + 1 },
+                          (_, i) => section.startNum + i
+                        ).map((num) => {
+                          const isRead = !!section.statuses[num];
+                          return (
+                            <button
+                              key={num}
+                              id={`item-${section.id}-${num}`}
+                              onClick={() => handleToggle(section.id, num)}
+                              className="border rounded-xl aspect-square flex items-center justify-center font-bold text-sm select-none touch-manipulation active:scale-90 transition-all duration-100"
+                              style={
+                                isRead
+                                  ? { backgroundColor: accentHex, color: "#1a1b26", borderColor: accentHex }
+                                  : { backgroundColor: "#24283b", color: "#4a5177", borderColor: "#3b4261" }
+                              }
+                              aria-label={`${num}${work.unit}`}
+                            >
+                              {num}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {/* セクション間のドロップ先インジケーター */}
+                  {sortMode && draggingSectionId && dragOverSectionIdx === sectionIndex + 1 && (
+                    <div className="h-0.5 rounded-full mx-1 mt-5" style={{ backgroundColor: accentHex }} />
                   )}
                 </div>
               );
@@ -539,8 +578,6 @@ export default function WorkDetailScreen({
           </div>
         )}
       </main>
-
-      {/* ② 範囲指定一括変更UI 削除済み */}
 
       {showWorkEdit && (
         <WorkModal
